@@ -5,9 +5,9 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened]
-if: github.repository_owner == 'Linlangwen'
 jobs:
   build:
+    if: github.repository_owner == 'Linlangwen'
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
