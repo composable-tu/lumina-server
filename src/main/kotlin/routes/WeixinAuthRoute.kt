@@ -20,7 +20,7 @@ fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
             val weixinOpenId = code2WeixinOpenIdOrNull(appId, appSecret,request.code)
             if (weixinOpenId == null) throw MissingTokenException()
             val jwt = generateJWT(weixinOpenId)
-            call.respondText(WeixinLoginResponse(jwt).toString())
+            call.respond(WeixinLoginResponse(jwt))
         }
         authenticate {
 

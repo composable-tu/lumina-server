@@ -6,6 +6,19 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+private val json = Json { ignoreUnknownKeys = true }
+
+/**
+ * 在内存中缓存的微信接口调用凭据
+ */
+private var cachedAccessToken: String? = null
+
+/**
+ * 在内存中缓存的微信接口调用凭据过期时间戳，需从服务器返回的 expires_in 字段中获取有效时长并计算出过期时间
+ */
+private var tokenExpiryTime: Long = 0L
 
 /**
  * 微信接口调用凭据响应体
@@ -24,7 +37,7 @@ data class WeixinAccessTokenResponse(
 private val client = HttpClient(CIO)
 
 /**
- * 获取接口调用凭据
+ * 获取接口调用凭据，凭据字符串优先来自内存缓存
  *
  * @param appId 小程序 appId
  * @param appSecret 小程序 appSecret
@@ -32,6 +45,9 @@ private val client = HttpClient(CIO)
  * @see [微信开放文档](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/mp-access-token/getAccessToken.html)
  */
 suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String? {
+    val now = System.currentTimeMillis()
+    if (cachedAccessToken!= null && now < tokenExpiryTime) return cachedAccessToken
+
     val response = client.get {
         url {
             protocol = URLProtocol.HTTPS
@@ -45,7 +61,11 @@ suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String
         }
     }
     val responseBody = response.body<WeixinAccessTokenResponse>()
-    return responseBody.access_token
+    val token = responseBody.access_token
+    val expiresIn = responseBody.expires_in
+    tokenExpiryTime = if (expiresIn != null) now + expiresIn * 1000L else 0L
+    cachedAccessToken = token
+    return token
 }
 
 
