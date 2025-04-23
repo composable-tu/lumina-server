@@ -57,9 +57,7 @@ fun Route.approvalRoute() {
                             }
                         }
                     }
-                    call.respond(
-                        HttpStatusCode.OK, approvalInfo
-                    )
+                    call.respond(approvalInfo)
                 }
             }
 
@@ -83,7 +81,7 @@ fun Route.approvalRoute() {
                     approvalInfoList.sortedByDescending({ it.createdAt })
                 }
                 call.respond(
-                    HttpStatusCode.OK, Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
+                    Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
                 )
             }
 
@@ -109,7 +107,7 @@ fun Route.approvalRoute() {
                         approvalInfoList.sortedByDescending({ it.createdAt })
                     }
                     call.respond(
-                        HttpStatusCode.OK, Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
+                        Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
                     )
                 }
                 get("/{groupId}") {
@@ -132,7 +130,7 @@ fun Route.approvalRoute() {
                             approvalInfoList.sortedByDescending({ it.createdAt })
                         }
                         call.respond(
-                            HttpStatusCode.OK, Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
+                            Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
                         )
                     }
                 }
@@ -173,7 +171,7 @@ fun Route.approvalRoute() {
                             it[status] = ApprovalStatus.WITHDRAWN
                         }
                     }
-                    call.respond(HttpStatusCode.OK, "撤回成功")
+                    call.respond("撤回成功")
                 }
             }
 
