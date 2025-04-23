@@ -68,9 +68,9 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                         repeatUserList.toList()
                     }
                     if (repeatUserList.isNotEmpty()) {
-                        val respose = GroupManagerResponse(repeatUserList)
+                        val response = GroupManagerResponse(repeatUserList)
                         call.respond(
-                            status = HttpStatusCode.Conflict, Json.encodeToString<GroupManagerResponse>(respose)
+                            status = HttpStatusCode.Conflict, Json.encodeToString<GroupManagerResponse>(response)
                         )
                     } else call.respond(HttpStatusCode.OK, message = "用户添加成功")
                 }
