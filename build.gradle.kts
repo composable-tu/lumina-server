@@ -10,6 +10,7 @@ plugins {
     kotlin("jvm") version "2.1.20"
     id("io.ktor.plugin") version "3.1.2"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.20"
+    id("org.sonarqube") version "6.0.1.5171"
 }
 
 group = "org.linlangwen"
@@ -24,6 +25,14 @@ application {
 
 repositories {
     mavenCentral()
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "Linlangwen_linlangwen-server")
+        property("sonar.organization", "linlangwen")
+        property("sonar.host.url", "https://sonarcloud.io")
+    }
 }
 
 dependencies {
