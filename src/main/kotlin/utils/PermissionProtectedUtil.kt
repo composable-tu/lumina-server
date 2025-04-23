@@ -1,12 +1,11 @@
 package org.linlangwen.utils
 
 import io.ktor.server.routing.*
-import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.linlangwen.models.*
 import org.linlangwen.utils.CheckType.*
 import org.linlangwen.utils.RuntimePermission.*
@@ -23,17 +22,17 @@ enum class RuntimePermission { SUPER_ADMIN, ADMIN, MEMBER, SELF }
 /**
  * 运行时权限集：超级管理员、管理员、自身
  */
-val SUPERADMIN_ADMIN_SELF_SET =  setOf(SUPER_ADMIN, ADMIN, SELF)
+val SUPERADMIN_ADMIN_SELF_SET = setOf(SUPER_ADMIN, ADMIN, SELF)
 
 /**
  * 运行时权限集：超级管理员、管理员
  */
-val SUPERADMIN_ADMIN_SET =  setOf(SUPER_ADMIN, ADMIN)
+val SUPERADMIN_ADMIN_SET = setOf(SUPER_ADMIN, ADMIN)
 
 /**
  * 运行时权限集：超级管理员、自身
  */
-val SUPERADMIN_SELF_SET =  setOf(SUPER_ADMIN, SELF)
+val SUPERADMIN_SELF_SET = setOf(SUPER_ADMIN, SELF)
 
 /**
  * 检查类型
@@ -66,27 +65,31 @@ suspend fun Route.protectedRoute(
         return false
     }
 
-    val canAction: Boolean = transaction {
+    val canAction: Boolean = newSuspendedTransaction {
         val userId = getUserIdByWeixinOpenIdOrNullFromDB(weixinOpenId)
-        if (userId == null) return@transaction setError("用户未注册")
+        if (userId == null) return@newSuspendedTransaction setError("用户未注册")
 
         if (soter) {
             // 检查用户是否设置了 SOTER 生物认证
             val isSoterEnabled = isUserSoterEnabledWithUserId(userId)
             if (isSoterEnabled) {
-                if (soterResultFromUser == null) return@transaction setError("SOTER 验证失败")
-                if (soterResultFromUser.json_string.isNullOrEmpty() || soterResultFromUser.json_signature.isNullOrEmpty()) return@transaction setError("SOTER 验证参数缺失")
-                val weixinSoterCheck = runBlocking {
-                    weixinSoterCheck(
-                        appId,
-                        appSecret,
-                        WeixinSoterCheckRequest(weixinOpenId, soterResultFromUser.json_string, soterResultFromUser.json_signature)
+                if (soterResultFromUser == null) return@newSuspendedTransaction setError("SOTER 验证失败")
+                if (soterResultFromUser.json_string.isNullOrEmpty() || soterResultFromUser.json_signature.isNullOrEmpty()) return@newSuspendedTransaction setError(
+                    "SOTER 验证参数缺失"
+                )
+                val weixinSoterCheck = weixinSoterCheck(
+                    appId,
+                    appSecret,
+                    WeixinSoterCheckRequest(
+                        weixinOpenId,
+                        soterResultFromUser.json_string,
+                        soterResultFromUser.json_signature
                     )
-                }
-                if (!weixinSoterCheck) return@transaction setError("SOTER 验证失败")
+                )
+                if (!weixinSoterCheck) return@newSuspendedTransaction setError("SOTER 验证失败")
             }
         }
-        return@transaction when (checkType) {
+        return@newSuspendedTransaction when (checkType) {
             GROUP_ID -> {
                 val isVerificationPassed = protectedRouteWithGroupId(userId, groupIdOrTaskIdOrApproveId, permissions)
                 if (!isVerificationPassed) setError("您没有操作此行动的权限") else true
@@ -103,10 +106,9 @@ suspend fun Route.protectedRoute(
                 val approveId = try {
                     groupIdOrTaskIdOrApproveId.toLong()
                 } catch (e: NumberFormatException) {
-                    return@transaction setError("无效的审批 ID")
+                    return@newSuspendedTransaction setError("无效的审批 ID")
                 }
-                val isVerificationPassed =
-                    protectedRouteWithApproveId(weixinOpenId, userId, approveId, permissions)
+                val isVerificationPassed = protectedRouteWithApproveId(weixinOpenId, userId, approveId, permissions)
                 if (!isVerificationPassed) setError("无权限") else true
             }
         }
@@ -120,7 +122,7 @@ fun Transaction.protectedRouteWithGroupId(
     // 获取用户在指定团体中的权限
     val userGroup = UserGroups.selectAll().where {
         (UserGroups.userId eq userId) and (UserGroups.groupId eq groupId)
-    }.firstOrNull() ?:return false
+    }.firstOrNull() ?: return false
     val userPermission = userGroup[UserGroups.permission]
 
 
@@ -141,10 +143,13 @@ fun Transaction.protectedRouteWithTaskId(
 fun Transaction.protectedRouteWithApproveId(
     weixinOpenId: String, userId: String, approveId: Long, permissions: Set<RuntimePermission>
 ): Boolean {
-    val approveRow = Approvals.select(Approvals.approvalId eq approveId).firstOrNull() ?: throw IllegalArgumentException("审批不存在")
+    val approveRow = Approvals.select(Approvals.approvalId eq approveId).firstOrNull()
+        ?: throw IllegalArgumentException("审批不存在")
     return when (approveRow[Approvals.approvalType]) {
         ApprovalTargetType.GROUP_JOIN -> {
-            val joinGroupApprovalRow = JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approveId).firstOrNull() ?: throw IllegalArgumentException("审批不存在")
+            val joinGroupApprovalRow =
+                JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approveId).firstOrNull()
+                    ?: throw IllegalArgumentException("审批不存在")
             val requesterWeixinOpenId = joinGroupApprovalRow[JoinGroupApprovals.requesterWeixinOpenId]
             val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]
             if (permissions.contains(SELF)) requesterWeixinOpenId == weixinOpenId else protectedRouteWithGroupId(
@@ -156,6 +161,7 @@ fun Transaction.protectedRouteWithApproveId(
             // TODO: 任务创建申请
             true
         }
+
         ApprovalTargetType.TASK_EXPAND_GROUP -> {
             // TODO:
             true

@@ -5,6 +5,8 @@ import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -35,6 +37,7 @@ data class WeixinAccessTokenResponse(
 )
 
 private val client = HttpClient(CIO)
+private val tokenMutex = Mutex()
 
 /**
  * 获取接口调用凭据，凭据字符串优先来自内存缓存
@@ -44,7 +47,7 @@ private val client = HttpClient(CIO)
  * @return 接口调用凭据或 null
  * @see [微信开放文档](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/mp-access-token/getAccessToken.html)
  */
-suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String? {
+suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String?  = tokenMutex.withLock {
     val now = System.currentTimeMillis()
     if (cachedAccessToken!= null && now < tokenExpiryTime) return cachedAccessToken
 

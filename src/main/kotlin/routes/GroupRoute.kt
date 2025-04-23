@@ -3,6 +3,7 @@ package org.linlangwen.routes
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -40,11 +41,11 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                 transaction {
                     val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
                     if (userIdFromDB != null) {
-                        if (userIdFromDB != requesterUserId) throw Exception("您的微信账号似乎曾绑定过用户 ID，但现在您填入的用户 ID 与数据库中您微信绑定的用户 ID 不一致。如需更改用户 ID，请联系客服进行处理。")
-                        if (isUserInGroup(userIdFromDB, groupId)) throw Exception("您已加入该团体")
+                        if (userIdFromDB != requesterUserId) throw BadRequestException("您的微信账号似乎曾绑定过用户 ID，但现在您填入的用户 ID 与数据库中您微信绑定的用户 ID 不一致。如需更改用户 ID，请联系客服进行处理。")
+                        if (isUserInGroup(userIdFromDB, groupId)) throw BadRequestException("您已加入该团体")
                     }
 
-                    if (!isGroupCreated(groupId)) throw Exception("该团体不存在")
+                    if (!isGroupCreated(groupId)) throw IllegalArgumentException("该团体不存在")
 
                     // 验证此前是否有同团体号下待审批的申请
                     val joinGroupApproval =
@@ -54,7 +55,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         val approvalId = joinGroupApproval[JoinGroupApprovals.approvalId]
                         val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
                         if (approvalRow == null) throw Exception("服务端出现错误")
-                        if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) throw Exception("您此前已提交过申请，请等待审批")
+                        if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) throw BadRequestException("您此前已提交过申请，请等待审批")
                     }
                 }
 
@@ -67,7 +68,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         nickname = requesterUserName
                     )
                 )
-                if (!weixinContentSecurityCheck) throw Exception("您提交的内容被微信判定为存在违规内容，请修改后再次提交")
+                if (!weixinContentSecurityCheck) throw BadRequestException("您提交的内容被微信判定为存在违规内容，请修改后再次提交")
                 transaction {
                     val approvalId = Approvals.insert {
                         it[approvalType] = ApprovalTargetType.GROUP_JOIN
@@ -94,7 +95,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                 protectedRoute(weixinOpenId, groupId, setOf(RuntimePermission.ADMIN), CheckType.GROUP_ID, false) {
                     val GroupInfo = transaction {
                         val GroupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
-                        if (GroupRow == null) throw Exception("无效的团体 ID")
+                        if (GroupRow == null) throw IllegalArgumentException("无效的团体 ID")
                         val GroupName = GroupRow[Groups.groupName]
                         val createAt = GroupRow[Groups.createdAt]
                         val memberList = UserGroups.select(UserGroups.groupId eq groupId).map { member ->
