@@ -90,7 +90,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     val groupManagerResponse: GroupManagerResponse = transaction {
                         val groupRemoveUserList = request.groupManageUserList
                         val notFoundUserList = mutableListOf<GroupManagerUser>()
-                        val noPremissionUserList = mutableListOf<GroupManagerUser>()
+                        val noPermissionUserList = mutableListOf<GroupManagerUser>()
                         groupRemoveUserList.forEach { groupRemoveUser ->
                             val removeUserId = groupRemoveUser.userId
                             val userFromGroupDB = UserGroups.selectAll().where {
@@ -100,15 +100,15 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                                 UserGroups.deleteWhere {
                                     (UserGroups.userId eq removeUserId) and (UserGroups.groupId eq groupId)
                                 }
-                            } else if (userFromGroupDB == null) notFoundUserList.add(groupRemoveUser) else if (userFromGroupDB[UserGroups.permission] != UserRole.MEMBER) noPremissionUserList.add(
+                            } else if (userFromGroupDB == null) notFoundUserList.add(groupRemoveUser) else if (userFromGroupDB[UserGroups.permission] != UserRole.MEMBER) noPermissionUserList.add(
                                 groupRemoveUser
                             )
                         }
-                        GroupManagerResponse(notFoundUserList.toList(), noPremissionUserList.toList())
+                        GroupManagerResponse(notFoundUserList.toList(), noPermissionUserList.toList())
                     }
                     val conflictUserList = groupManagerResponse.conflictUserList
-                    val noPremissionUserList = groupManagerResponse.noPremissionUserList
-                    if (conflictUserList.isNullOrEmpty() && noPremissionUserList.isNullOrEmpty()) call.respond(
+                    val noPermissionUserList = groupManagerResponse.noPermissionUserList
+                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond(
                         HttpStatusCode.OK, message = "用户移除成功"
                     ) else call.respond(
                         status = HttpStatusCode.NotFound,
@@ -133,5 +133,5 @@ data class GroupManagerRequest(
 
 @Serializable
 data class GroupManagerResponse(
-    val conflictUserList: List<GroupManagerUser>? = null, val noPremissionUserList: List<GroupManagerUser>? = null
+    val conflictUserList: List<GroupManagerUser>? = null, val noPermissionUserList: List<GroupManagerUser>? = null
 )
