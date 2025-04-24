@@ -50,8 +50,9 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                         groupAddUserList.forEach { groupAddUser ->
                             val addUserId = groupAddUser.userId
                             val addUserName = groupAddUser.userName
-                            val userFromGroupDB = UserGroups.selectAll().where {
-                                (UserGroups.userId eq addUserId) and (UserGroups.groupId eq groupId)
+val userFromGroupDB = UserGroups.selectAll()
+                            .where {
+                                (UserGroups.userId.trim() eq addUserId.trim()) and (UserGroups.groupId.trim() eq groupId.trim())
                             }.firstOrNull()
                             if (userFromGroupDB != null) repeatUserList.add(groupAddUser) else {
                                 Users.insert {
