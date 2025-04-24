@@ -152,7 +152,7 @@ fun Route.approvalRoute() {
                 }
                 val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
                 val action = requireNotNull(actionRequest.action) { "操作不能为空" }
-                if (action != ApprovalAction.WITHDRAW) throw IllegalArgumentException("用户端操作出错")
+                if (action != WITHDRAW) throw IllegalArgumentException("用户端操作出错")
 
                 protectedRoute(
                     weixinOpenId,

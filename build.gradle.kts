@@ -1,10 +1,10 @@
-val exposed_version: String by project
-val h2_version: String by project
-val kotlin_version: String by project
-val logback_version: String by project
-val postgres_version: String by project
-val kona_sm_version: String by project
-val tika_version: String by project
+val exposed_version = "0.60.0"
+val h2_version = "2.3.232"
+val kotlin_version="2.1.20"
+val logback_version="1.5.13"
+val postgres_version="42.7.5"
+val kona_sm_version="1.0.16"
+val tika_version="3.1.0"
 
 plugins {
     kotlin("jvm") version "2.1.20"
