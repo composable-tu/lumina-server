@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -54,7 +55,7 @@ suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String
     val response = client.get {
         url {
             protocol = URLProtocol.HTTPS
-            host = "api.weixin.qq.com"
+            host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("cgi-bin", "token")
             parameters.apply {
                 append("grant_type", "client_credential")

@@ -7,6 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_COMMENT
 import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_FORUM
 import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_PROFILE
@@ -123,7 +124,7 @@ suspend fun weixinContentSecurityCheck(
     val response = client.post {
         url {
             protocol = URLProtocol.HTTPS
-            host = "api.weixin.qq.com"
+            host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("wxa", "msg_sec_check")
             parameters.append("access_token", accessToken)
         }
@@ -134,6 +135,7 @@ suspend fun weixinContentSecurityCheck(
 
 /**
  * 临时性策略检查内容安全
+ * 在微信侧返回建议为 pass 或 review 时认为内容（相对来说）安全
  */
 suspend fun temporaryWeixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest

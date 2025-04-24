@@ -7,6 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 
 /**
  * 微信 Soter 生物认证请求体
@@ -44,7 +45,7 @@ suspend fun weixinSoterCheck(appId: String, appSecret: String,request: WeixinSot
     val response = client.post {
         url {
             protocol = URLProtocol.HTTPS
-            host = "api.weixin.qq.com"
+            host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("cgi-bin", "soter", "verify_signature")
             parameters.append("access_token", accessToken)
         }

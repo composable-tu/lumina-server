@@ -11,7 +11,7 @@ fun Any.normalized(): Any {
     val kClass = obj::class
 
     if (obj is Map<*, *>) {
-        return obj.mapValues { (key, value) ->
+        return obj.mapValues { (_, value) ->
             when (value) {
                 is String -> value.trim()
                 is Map<*, *> -> value.normalized()

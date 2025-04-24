@@ -15,6 +15,8 @@ import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
+import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.linlangwen.models.*
 import org.linlangwen.utils.CheckType
 import org.linlangwen.utils.RuntimePermission
@@ -25,15 +27,22 @@ import org.linlangwen.utils.protectedRoute
 import org.linlangwen.utils.temporaryWeixinContentSecurityCheck
 import java.time.LocalDateTime
 
+/**
+ * 团体路由
+ *
+ * 功能：
+ * - 申请加入团体
+ * - 获取团体基础信息
+ */
 fun Route.groupRoute(appId: String, appSecret: String) {
     authenticate {
         route("/group/{groupId}") {
             post("/join") {
-                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respondText(
-                    status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
+                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
+                    HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respondText(
-                    status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
                 val request = call.receive<GroupJoinRequest>().normalized() as GroupJoinRequest
                 val requesterUserId = request.requesterUserId
@@ -84,19 +93,19 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         it[this.requesterUserName] = requesterUserName
                     }
                 }
-                call.respondText("申请提交成功")
+                call.respond("申请提交成功")
             }
             get { // getGroupInfo
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respondText(
-                    status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
-                val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respondText(
-                    status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
+                val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
+                    HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
                 protectedRoute(weixinOpenId, groupId, setOf(RuntimePermission.ADMIN), CheckType.GROUP_ID, false) {
                     val GroupInfo = transaction {
                         val GroupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
-                        if (GroupRow == null) throw IllegalArgumentException("无效的团体 ID")
+                        if (GroupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
                         val GroupName = GroupRow[Groups.groupName]
                         val createAt = GroupRow[Groups.createdAt]
                         val memberList = UserGroups.select(UserGroups.groupId eq groupId).map { member ->
@@ -109,9 +118,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         }
                         GroupInfoResponse(groupId, GroupName, createAt.toKotlinLocalDateTime(), memberList)
                     }
-                    call.respondText(
-                        status = HttpStatusCode.OK, text = Json.encodeToString<GroupInfoResponse>(GroupInfo)
-                    )
+                    call.respond(HttpStatusCode.OK, Json.encodeToString<GroupInfoResponse>(GroupInfo))
                 }
             }
         }

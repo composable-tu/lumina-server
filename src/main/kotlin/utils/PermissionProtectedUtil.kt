@@ -116,6 +116,9 @@ suspend fun Route.protectedRoute(
     if (canAction) action() else throw IllegalArgumentException(errorText)
 }
 
+/**
+ * 基于 User ID 和 Group ID 检查用户是否有权对某团体执行某个操作
+ */
 fun Transaction.protectedRouteWithGroupId(
     userId: String, groupId: String, permissions: Set<RuntimePermission>
 ): Boolean {
@@ -134,12 +137,18 @@ fun Transaction.protectedRouteWithGroupId(
     }
 }
 
+/**
+ * 基于 User ID 和 Task ID 检查用户是否有权对某任务执行某个操作
+ */
 fun Transaction.protectedRouteWithTaskId(
     userId: String, taskId: String, permissions: Set<RuntimePermission>
 ): Boolean {
     return TODO()
 }
 
+/**
+ * 基于 User ID 和 Approve ID 检查用户是否有权对某审批执行某个操作
+ */
 fun Transaction.protectedRouteWithApproveId(
     weixinOpenId: String, userId: String, approveId: Long, permissions: Set<RuntimePermission>
 ): Boolean {
@@ -169,6 +178,9 @@ fun Transaction.protectedRouteWithApproveId(
     }
 }
 
+/**
+ * 在数据库中查询用户是否启用高危操作需经过腾讯 SOTER 生物认证
+ */
 fun Transaction.isUserSoterEnabledWithUserId(userId: String): Boolean {
     return Users.select(Users.userId eq userId).firstOrNull()?.get(Users.isSoterEnabled)
         ?: throw IllegalArgumentException("服务器错误")

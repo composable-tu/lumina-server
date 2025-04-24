@@ -13,27 +13,40 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_APPROVAL_ID
+import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.linlangwen.models.*
 import org.linlangwen.routes.ApprovalAction.APPROVE
 import org.linlangwen.routes.ApprovalAction.REJECT
 import org.linlangwen.routes.ApprovalAction.WITHDRAW
 import org.linlangwen.utils.*
 
+/**
+ * 审批路由
+ *
+ * 功能：
+ * - 根据审批 ID 获取审批信息
+ * - 获取自己创建的审批信息
+ * - 管理员获取自己所有管理的团体的审批信息
+ * - 管理员根据团体 ID 获取该团体的审批信息
+ * - 审批创建者撤回自己的审批
+ * - 管理员对审批进行通过或拒绝操作
+ */
 fun Route.approvalRoute() {
     authenticate {
         route("/approvals") {
             get("/{approvalId}") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@get call.respond(
-                    HttpStatusCode.BadRequest, "无效的审批 ID"
+                    HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
                 val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                    HttpStatusCode.Unauthorized, "无效的 JWT"
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
                     return@get call.respond(
-                        HttpStatusCode.BadRequest, "无效的审批 ID"
+                        HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                     )
                 }
                 protectedRoute(
@@ -41,7 +54,7 @@ fun Route.approvalRoute() {
                 ) {
                     val approvalInfo = transaction {
                         val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException("无效的审批 ID")
+                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         when (approvalType) {
                             ApprovalTargetType.TASK_CREATION -> {
@@ -63,10 +76,10 @@ fun Route.approvalRoute() {
 
             get("/self") {
                 val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                    HttpStatusCode.Unauthorized, "无效的 JWT"
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
                 val approvalInfoList = transaction {
-                    // val userId = weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException("无效的 JWT")
+                    // val userId = weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException(INVALID_JWT)
                     val approvalInfoList = mutableListOf<ApprovalInfo>()
 
                     val joinGroupApprovalInfoRows = JoinGroupApprovals.selectAll()
@@ -88,11 +101,11 @@ fun Route.approvalRoute() {
             route("/admin") {
                 get {
                     val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                        HttpStatusCode.Unauthorized, "无效的 JWT"
+                        HttpStatusCode.Unauthorized, INVALID_JWT
                     )
                     val approvalInfoList = transaction {
                         val userId =
-                            weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException("无效的 JWT")
+                            weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException(INVALID_JWT)
                         val managingGroupIdList = UserGroups.selectAll()
                             .where { (UserGroups.userId eq userId) and ((UserGroups.permission eq UserRole.SUPER_ADMIN) or (UserGroups.permission eq UserRole.ADMIN)) }
                             .map { it[UserGroups.groupId] }
@@ -112,10 +125,10 @@ fun Route.approvalRoute() {
                 }
                 get("/{groupId}") {
                     val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                        HttpStatusCode.Unauthorized, "无效的 JWT"
+                        HttpStatusCode.Unauthorized, INVALID_JWT
                     )
                     val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
-                        HttpStatusCode.BadRequest, "无效的审批 ID"
+                        HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                     )
                     protectedRoute(
                         weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, false
@@ -138,16 +151,16 @@ fun Route.approvalRoute() {
 
             post("/{approvalId}/withdraw") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
-                    HttpStatusCode.BadRequest, "无效的审批 ID"
+                    HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
                 val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
-                    HttpStatusCode.Unauthorized, "无效的 JWT"
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
                     return@post call.respond(
-                        HttpStatusCode.BadRequest, "无效的审批 ID"
+                        HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                     )
                 }
                 val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
@@ -164,7 +177,7 @@ fun Route.approvalRoute() {
                 ) {
                     transaction {
                         val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException("无效的审批 ID")
+                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         if (actionRequest.approvalType != approvalType.toString()) throw IllegalArgumentException("用户端传递的审批类型与实际审批类型不匹配")
                         Approvals.update({ Approvals.approvalId eq approvalId }) {
@@ -177,15 +190,15 @@ fun Route.approvalRoute() {
 
             post("/{approvalId}") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
-                    HttpStatusCode.BadRequest, "无效的审批 ID"
+                    HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
                 val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
-                    HttpStatusCode.Unauthorized, "无效的 JWT"
+                    HttpStatusCode.Unauthorized, INVALID_JWT
                 )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
-                    return@post call.respond(HttpStatusCode.BadRequest, "无效的审批 ID")
+                    return@post call.respond(HttpStatusCode.BadRequest, INVALID_APPROVAL_ID)
                 }
                 val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
 
@@ -199,7 +212,7 @@ fun Route.approvalRoute() {
                 ) {
                     transaction {
                         val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException("无效的审批 ID")
+                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         if (actionRequest.approvalType != approvalType.toString()) throw IllegalArgumentException("用户端传递的审批类型与实际审批类型不匹配")
                         when (approvalType) {
@@ -212,7 +225,7 @@ fun Route.approvalRoute() {
                                     JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approvalId).firstOrNull()
                                         ?: throw IllegalStateException("服务器错误")
                                 when (actionRequest.action) {
-                                    ApprovalAction.APPROVE -> {
+                                    APPROVE -> {
                                         val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]
                                         val requesterUserId = joinGroupApprovalRow[JoinGroupApprovals.requesterUserId]
                                         val requesterUserName =
@@ -231,7 +244,7 @@ fun Route.approvalRoute() {
                                         }
                                     }
 
-                                    ApprovalAction.REJECT -> {
+                                    REJECT -> {
                                         Approvals.update({ Approvals.approvalId eq approvalId }) {
                                             it[status] = ApprovalStatus.REJECTED
                                         }
@@ -268,6 +281,17 @@ object ApprovalAction {
     const val WITHDRAW = "withdraw"
 }
 
+/**
+ * 审批信息
+ * @param approvalId 审批 ID
+ * @param createdAt 创建时间
+ * @param approvalType 审批类型
+ * @param status 审批状态
+ * @param comment 任务请求者的私下评论
+ * @param reviewer 审批人 ID
+ * @param reviewerName 审批人昵称
+ * @param reviewedAt 审批时间
+ */
 @Serializable
 data class ApprovalInfo(
     val approvalId: Long,
@@ -280,6 +304,21 @@ data class ApprovalInfo(
     val reviewedAt: LocalDateTime?
 )
 
+/**
+ * 加入群组审批信息
+ * @param approvalId 审批 ID
+ * @param targetGroupId 申请加入的群组 ID
+ * @param requesterUserId 申请加入的群组的请求者自填写的个人 ID
+ * @param requesterUserName 申请加入的群组的请求者自填写的个人昵称
+ * @param requesterWeixinOpenId 申请加入的群组的请求者的微信小程序 OpenID，由微信小程序端 wx.login() 自动生成
+ * @param createdAt 创建时间
+ * @param approvalType 审批类型
+ * @param status 审批状态
+ * @param comment 任务请求者的私下评论
+ * @param reviewer 审批人 ID
+ * @param reviewerName 审批人昵称
+ * @param reviewedAt 审批时间
+ */
 @Serializable
 data class JoinGroupApprovalInfo(
     val approvalId: Long,
@@ -296,6 +335,12 @@ data class JoinGroupApprovalInfo(
     val reviewedAt: LocalDateTime?
 )
 
+/**
+ * 生成审批信息对象
+ *
+ * @param approvalRow 来自 JetBrains Exposed 查库结果的 ResultRow
+ * @return ApprovalInfo 对象
+ */
 fun Transaction.buildApprovalInfo(approvalRow: ResultRow): ApprovalInfo {
     val reviewer = approvalRow[Approvals.reviewer]
     val reviewerName =
@@ -312,6 +357,13 @@ fun Transaction.buildApprovalInfo(approvalRow: ResultRow): ApprovalInfo {
     )
 }
 
+/**
+ * 生成加入群组审批信息对象
+ *
+ * @param approvalId 审批 ID
+ * @param approvalRow 来自 JetBrains Exposed 查库结果的 ResultRow
+ * @return JoinGroupApprovalInfo 对象
+ */
 fun Transaction.buildJoinGroupApprovalInfo(approvalId: Long, approvalRow: ResultRow): JoinGroupApprovalInfo {
     val joinGroupApprovalRow = JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approvalId).firstOrNull()
         ?: throw IllegalStateException("服务器错误")

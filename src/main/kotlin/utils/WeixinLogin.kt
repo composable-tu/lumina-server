@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Transaction
+import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 import org.linlangwen.models.Users
 
 @Serializable
@@ -27,7 +28,7 @@ suspend fun code2Session(appId: String, appSecret: String, code: String): Weixin
     val response = client.get {
         url {
             protocol = URLProtocol.HTTPS
-            host = "api.weixin.qq.com"
+            host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("sns", "jscode2session")
             parameters.apply {
                 append("appid", appId)

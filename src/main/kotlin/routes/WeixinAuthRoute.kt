@@ -14,6 +14,12 @@ import org.linlangwen.models.Users
 import org.linlangwen.utils.code2WeixinOpenIdOrNull
 import org.linlangwen.utils.normalized
 
+/**
+ * 微信认证路由
+ *
+ * 功能：
+ * - 在微信小程序端未保存 JWT 的情况下，POST `/weixin/login` 得到服务端加密的 Weixin Open ID JWT
+ */
 fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
     route("/weixin") {
         post("/login") {
