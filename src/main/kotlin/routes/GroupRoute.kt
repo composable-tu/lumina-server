@@ -20,6 +20,7 @@ import org.linlangwen.utils.CheckType
 import org.linlangwen.utils.RuntimePermission
 import org.linlangwen.utils.WeixinContentSecurityRequest
 import org.linlangwen.utils.WeixinContentSecurityScene
+import org.linlangwen.utils.normalized
 import org.linlangwen.utils.protectedRoute
 import org.linlangwen.utils.temporaryWeixinContentSecurityCheck
 import java.time.LocalDateTime
@@ -28,13 +29,13 @@ fun Route.groupRoute(appId: String, appSecret: String) {
     authenticate {
         route("/group/{groupId}") {
             post("/join") {
-                val groupId = call.parameters["groupId"] ?: return@post call.respondText(
+                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@post call.respondText(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
                 )
-                val request = call.receive<GroupJoinRequest>()
+                val request = call.receive<GroupJoinRequest>().normalized() as GroupJoinRequest
                 val requesterUserId = request.requesterUserId
                 val requesterUserName = request.requesterUserName
                 val requesterComment = request.requesterComment
@@ -86,10 +87,10 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                 call.respondText("申请提交成功")
             }
             get { // getGroupInfo
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@get call.respondText(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respondText(
                     status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
                 )
-                val groupId = call.parameters["groupId"] ?: return@get call.respondText(
+                val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respondText(
                     status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
                 )
                 protectedRoute(weixinOpenId, groupId, setOf(RuntimePermission.ADMIN), CheckType.GROUP_ID, false) {

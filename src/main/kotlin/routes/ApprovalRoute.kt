@@ -23,10 +23,10 @@ fun Route.approvalRoute() {
     authenticate {
         route("/approvals") {
             get("/{approvalId}") {
-                val approvalIdString = call.parameters["approvalId"] ?: return@get call.respond(
+                val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@get call.respond(
                     HttpStatusCode.BadRequest, "无效的审批 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@get call.respond(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
                     HttpStatusCode.Unauthorized, "无效的 JWT"
                 )
                 val approvalId = try {
@@ -62,7 +62,7 @@ fun Route.approvalRoute() {
             }
 
             get("/self") {
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@get call.respond(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
                     HttpStatusCode.Unauthorized, "无效的 JWT"
                 )
                 val approvalInfoList = transaction {
@@ -87,7 +87,7 @@ fun Route.approvalRoute() {
 
             route("/admin") {
                 get {
-                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@get call.respond(
+                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
                         HttpStatusCode.Unauthorized, "无效的 JWT"
                     )
                     val approvalInfoList = transaction {
@@ -111,10 +111,10 @@ fun Route.approvalRoute() {
                     )
                 }
                 get("/{groupId}") {
-                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@get call.respond(
+                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
                         HttpStatusCode.Unauthorized, "无效的 JWT"
                     )
-                    val groupId = call.parameters["groupId"] ?: return@get call.respond(
+                    val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
                         HttpStatusCode.BadRequest, "无效的审批 ID"
                     )
                     protectedRoute(
@@ -137,10 +137,10 @@ fun Route.approvalRoute() {
             }
 
             post("/{approvalId}/withdraw") {
-                val approvalIdString = call.parameters["approvalId"] ?: return@post call.respond(
+                val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, "无效的审批 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@post call.respond(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
                     HttpStatusCode.Unauthorized, "无效的 JWT"
                 )
                 val approvalId = try {
@@ -150,7 +150,7 @@ fun Route.approvalRoute() {
                         HttpStatusCode.BadRequest, "无效的审批 ID"
                     )
                 }
-                val actionRequest = call.receive<ApprovalActionRequest>()
+                val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
                 val action = requireNotNull(actionRequest.action) { "操作不能为空" }
                 if (action != ApprovalAction.WITHDRAW) throw IllegalArgumentException("用户端操作出错")
 
@@ -176,10 +176,10 @@ fun Route.approvalRoute() {
             }
 
             post("/{approvalId}") {
-                val approvalIdString = call.parameters["approvalId"] ?: return@post call.respond(
+                val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, "无效的审批 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@post call.respond(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
                     HttpStatusCode.Unauthorized, "无效的 JWT"
                 )
                 val approvalId = try {
@@ -187,7 +187,7 @@ fun Route.approvalRoute() {
                 } catch (_: NumberFormatException) {
                     return@post call.respond(HttpStatusCode.BadRequest, "无效的审批 ID")
                 }
-                val actionRequest = call.receive<ApprovalActionRequest>()
+                val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
 
                 protectedRoute(
                     weixinOpenId,

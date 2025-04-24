@@ -12,11 +12,12 @@ import org.linlangwen.generateJWT
 import org.linlangwen.models.UserGroups
 import org.linlangwen.models.Users
 import org.linlangwen.utils.code2WeixinOpenIdOrNull
+import org.linlangwen.utils.normalized
 
 fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
     route("/weixin") {
         post("/login") {
-            val request = call.receive<WeixinLoginRequest>()
+            val request = call.receive<WeixinLoginRequest>().normalized() as WeixinLoginRequest
             val weixinOpenId = code2WeixinOpenIdOrNull(appId, appSecret,request.code)
             if (weixinOpenId == null) throw MissingTokenException()
             val jwt = generateJWT(weixinOpenId)

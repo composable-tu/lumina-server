@@ -23,13 +23,13 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
     authenticate {
         route("/groupManager/{groupId}") {
             post("/add") {
-                val groupId = call.parameters["groupId"] ?: return@post call.respondText(
+                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@post call.respondText(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
                 )
-                val request = call.receive<GroupManagerRequest>()
+                val request = call.receive<GroupManagerRequest>().normalized() as GroupManagerRequest
                 val groupAddUserList = request.groupManageUserList
                 groupAddUserList.forEach { groupAddUser ->
                     val isContentSafety = temporaryWeixinContentSecurityCheck(
@@ -40,7 +40,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                             nickname = groupAddUser.userName
                         )
                     )
-                    if (!isContentSafety) return@post call.respondText("您提交的内容被微信判定为存在违规内容，请修改后再次提交")
+                    if (!isContentSafety) return@post call.respond(HttpStatusCode.BadRequest,"您提交的内容被微信判定为存在违规内容，请修改后再次提交")
                 }
                 protectedRoute(
                     weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
@@ -52,7 +52,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                             val addUserName = groupAddUser.userName
 val userFromGroupDB = UserGroups.selectAll()
                             .where {
-                                (UserGroups.userId.trim() eq addUserId.trim()) and (UserGroups.groupId.trim() eq groupId.trim())
+                                (UserGroups.userId eq addUserId) and (UserGroups.groupId eq groupId)
                             }.firstOrNull()
                             if (userFromGroupDB != null) repeatUserList.add(groupAddUser) else {
                                 Users.insert {
@@ -78,13 +78,13 @@ val userFromGroupDB = UserGroups.selectAll()
 
             }
             post("/remove") {
-                val groupId = call.parameters["groupId"] ?: return@post call.respondText(
+                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.BadRequest, text = "无效的团体 ID"
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId") ?: return@post call.respondText(
+                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respondText(
                     status = HttpStatusCode.Unauthorized, text = "无效的 JWT"
                 )
-                val request = call.receive<GroupManagerRequest>()
+                val request = call.receive<GroupManagerRequest>().normalized() as GroupManagerRequest
                 protectedRoute(
                     weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
                 ) {
