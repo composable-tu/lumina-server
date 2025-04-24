@@ -19,14 +19,13 @@ class SM3WithSM2Algorithm(
         }
     }
 
-    private val signature: Signature = Signature.getInstance("SM3WithSM2", KonaProvider.NAME)
-
     override fun verify(jwt: DecodedJWT) {
         try {
             val header = jwt.header
             val payload = jwt.payload
             val signatureBytes = Base64.getUrlDecoder().decode(jwt.signature)
 
+            val signature = Signature.getInstance("SM3WithSM2", KonaProvider.NAME)
             signature.initVerify(publicKey)
             val data = "${jwt.header}.${jwt.payload}".toByteArray(Charsets.UTF_8)
             signature.update(data)
@@ -41,6 +40,7 @@ class SM3WithSM2Algorithm(
     override fun sign(data: ByteArray): ByteArray {
         if (privateKey == null) throw IllegalArgumentException("Private key is required for signing.")
         try {
+            val signature = Signature.getInstance("SM3WithSM2", KonaProvider.NAME)
             signature.initSign(privateKey)
             signature.update(data)
             return signature.sign()
