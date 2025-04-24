@@ -1,4 +1,4 @@
-val exposed_version = "0.60.0"
+val exposed_version = "0.61.0"
 val h2_version = "2.3.232"
 val kotlin_version="2.1.20"
 val logback_version="1.5.13"
