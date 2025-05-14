@@ -1,10 +1,10 @@
-package org.linlangwen.models
+package org.lumina.models
 
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.datetime
-import org.linlangwen.models.ApprovalStatus.*
-import org.linlangwen.models.ApprovalTargetType.*
+import org.lumina.models.ApprovalStatus.*
+import org.lumina.models.ApprovalTargetType.*
 
 /**
  * 审批目标类型
@@ -18,10 +18,11 @@ enum class ApprovalTargetType { TASK_CREATION, GROUP_JOIN, TASK_EXPAND_GROUP }
  * 审批状态
  * @property PENDING 待审批
  * @property APPROVED 已通过
+ * @property AUTO_PASSED 自动通过
  * @property REJECTED 已拒绝
  * @property WITHDRAWN 已撤回
  */
-enum class ApprovalStatus { PENDING, APPROVED, REJECTED, WITHDRAWN }
+enum class ApprovalStatus { PENDING, APPROVED, AUTO_PASSED, REJECTED, WITHDRAWN }
 
 object Approvals : Table("approvals") {
     val approvalId = long("approval_id").autoIncrement().uniqueIndex()  // 审批 ID
@@ -42,6 +43,7 @@ object JoinGroupApprovals : Table("join_group_approvals") {
     val requesterUserId = text("requester_user_id")
     val requesterUserName = text("requester_user_name")
     val requesterWeixinOpenId = text("requester_weixin_open_id")
+    val entryPasswordSM3 = text("entry_password_sm3").nullable()
     override val primaryKey = PrimaryKey(approvalId)
 }
 

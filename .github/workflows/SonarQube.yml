@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   build:
-    if: github.repository_owner == 'Linlangwen'
+    if: github.repository_owner == 'LuminaPJ'
     name: Build and analyze
     runs-on: ubuntu-latest
     permissions:

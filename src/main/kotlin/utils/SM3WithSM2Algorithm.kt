@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.SignatureGenerationException

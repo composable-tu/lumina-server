@@ -1,4 +1,4 @@
-package org.linlangwen
+package org.lumina
 
 import io.ktor.server.application.*
 import org.jetbrains.exposed.sql.Database
@@ -6,10 +6,10 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.linlangwen.models.Approvals
-import org.linlangwen.models.Groups
-import org.linlangwen.models.UserGroups
-import org.linlangwen.models.Users
+import org.lumina.models.Approvals
+import org.lumina.models.Groups
+import org.lumina.models.UserGroups
+import org.lumina.models.Users
 
 fun Application.configureDatabases() {
     val database = Database.connect(

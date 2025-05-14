@@ -1,4 +1,4 @@
-package org.linlangwen.routes
+package org.lumina.routes
 
 import io.ktor.http.*
 import io.ktor.server.auth.*
@@ -14,12 +14,12 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
-import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_JWT
-import org.linlangwen.models.UserGroups
-import org.linlangwen.models.UserRole
-import org.linlangwen.models.Users
-import org.linlangwen.utils.*
+import org.lumina.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
+import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
+import org.lumina.models.UserGroups
+import org.lumina.models.UserRole
+import org.lumina.models.Users
+import org.lumina.utils.*
 
 /**
  * 团体管理路由
@@ -27,7 +27,7 @@ import org.linlangwen.utils.*
  * 功能：
  * - 添加成员
  * - 移除成员
- *
+ * - TODO: 为团体设置临时密码与有效期
  */
 fun Route.groupManagerRoute(appId: String, appSecret: String) {
     authenticate {

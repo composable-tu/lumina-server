@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -6,9 +6,9 @@ import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import org.linlangwen.models.*
-import org.linlangwen.utils.CheckType.*
-import org.linlangwen.utils.RuntimePermission.*
+import org.lumina.models.*
+import org.lumina.utils.CheckType.*
+import org.lumina.utils.RuntimePermission.*
 
 /**
  * 运行时角色权限

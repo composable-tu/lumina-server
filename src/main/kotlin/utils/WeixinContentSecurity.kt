@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -7,11 +7,11 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
-import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_COMMENT
-import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_FORUM
-import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_PROFILE
-import org.linlangwen.utils.WeixinContentSecurityScene.SCENE_SOCIAL_LOG
+import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
+import org.lumina.utils.WeixinContentSecurityScene.SCENE_COMMENT
+import org.lumina.utils.WeixinContentSecurityScene.SCENE_FORUM
+import org.lumina.utils.WeixinContentSecurityScene.SCENE_PROFILE
+import org.lumina.utils.WeixinContentSecurityScene.SCENE_SOCIAL_LOG
 
 /**
  * 场景枚举值

@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -45,5 +45,12 @@ fun Any.normalized(): Any {
     }
 
     return obj
+}
+
+/**
+ * 将字节数组转换成十六进制字符串（大写字母）
+ */
+fun ByteArray.toHashString(): String {
+    return joinToString("") { "%02X".format(it) }
 }
 

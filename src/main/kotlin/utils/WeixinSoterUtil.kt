@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -7,7 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
+import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 
 /**
  * 微信 Soter 生物认证请求体

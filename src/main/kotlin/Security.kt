@@ -1,4 +1,4 @@
-package org.linlangwen
+package org.lumina
 
 import com.auth0.jwt.JWT
 import com.tencent.kona.KonaProvider
@@ -11,7 +11,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.linlangwen.utils.SM3WithSM2Algorithm
+import org.lumina.utils.SM3WithSM2Algorithm
 import java.security.*
 import java.util.*
 

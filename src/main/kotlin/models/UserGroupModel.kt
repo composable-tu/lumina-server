@@ -1,11 +1,12 @@
-package org.linlangwen.models
+package org.lumina.models
 
 import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.javatime.datetime
-import org.linlangwen.models.UserRole.*
+import org.jetbrains.exposed.sql.or
+import org.lumina.models.UserRole.*
 
 object Users : Table("users") {
     val userId = text("user_id").uniqueIndex()
@@ -28,6 +29,8 @@ object Groups : Table("groups") {
     val groupId = text("group_id").uniqueIndex()
     val groupName = text("group_name").nullable()
     val superAdmin = reference("super_admin_id", Users.userId, onDelete = ReferenceOption.NO_ACTION) // 超级管理员（只唯一，不可为空，可转让）
+    val entryPasswordSM3 = text("entry_password_sm3").nullable()
+    val passwordEndTime  = datetime("password_end_time").nullable()
     val createdAt = datetime("created_at")
     override val primaryKey = PrimaryKey(groupId)
 }

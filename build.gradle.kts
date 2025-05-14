@@ -8,12 +8,12 @@ val tika_version="3.1.0"
 
 plugins {
     kotlin("jvm") version "2.1.20"
-    id("io.ktor.plugin") version "3.1.2"
+    id("io.ktor.plugin") version "3.1.3"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.20"
     id("org.sonarqube") version "6.1.0.5360"
 }
 
-group = "org.linlangwen"
+group = "org.lumina"
 version = "0.0.1"
 
 application {
@@ -29,8 +29,8 @@ repositories {
 
 sonar {
     properties {
-        property("sonar.projectKey", "Linlangwen_linlangwen-server")
-        property("sonar.organization", "linlangwen")
+        property("sonar.projectKey", "LuminaPJ_lumina-server")
+        property("sonar.organization", "lumina")
         property("sonar.host.url", "https://sonarcloud.io")
     }
 }

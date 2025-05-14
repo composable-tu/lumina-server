@@ -1,4 +1,4 @@
-package org.linlangwen
+package org.lumina
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*

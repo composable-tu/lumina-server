@@ -1,4 +1,4 @@
-package org.linlangwen.utils
+package org.lumina.utils
 
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -9,7 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.linlangwen.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
+import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 
 private val json = Json { ignoreUnknownKeys = true }
 

@@ -1,4 +1,4 @@
-package org.linlangwen.fields
+package org.lumina.fields
 
 object GeneralFields {
     const val WEIXIN_MP_SERVER_OPEN_API_HOST = "api.weixin.qq.com"

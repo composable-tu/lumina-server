@@ -1,1 +1,1 @@
-rootProject.name = "Linlangwen"
+rootProject.name = "LuminaPJ Server"

@@ -1,9 +1,9 @@
-package org.linlangwen.routes
+package org.lumina.routes
 
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
-import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -15,16 +15,11 @@ import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
-import org.linlangwen.fields.ReturnInvalidReasonFields.INVALID_JWT
-import org.linlangwen.models.*
-import org.linlangwen.utils.CheckType
-import org.linlangwen.utils.RuntimePermission
-import org.linlangwen.utils.WeixinContentSecurityRequest
-import org.linlangwen.utils.WeixinContentSecurityScene
-import org.linlangwen.utils.normalized
-import org.linlangwen.utils.protectedRoute
-import org.linlangwen.utils.temporaryWeixinContentSecurityCheck
+import org.lumina.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
+import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
+import org.lumina.models.*
+import org.lumina.utils.*
+import java.security.MessageDigest
 import java.time.LocalDateTime
 
 /**
@@ -41,13 +36,15 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val request = call.receive<GroupJoinRequest>().normalized() as GroupJoinRequest
                 val requesterUserId = request.requesterUserId
                 val requesterUserName = request.requesterUserName
                 val requesterComment = request.requesterComment
+                val entryPassword = request.entryPassword
                 transaction {
                     val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
                     if (userIdFromDB != null) {
@@ -79,10 +76,26 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     )
                 )
                 if (!weixinContentSecurityCheck) throw BadRequestException("您提交的内容被微信判定为存在违规内容，请修改后再次提交")
-                transaction {
+                val isJoin = transaction {
+                    // 这里的判断逻辑是，如果进团体临时令牌没写就认为是应该经过审批加入请求，进入审批数据库
+                    // 如果进团体临时令牌不符合数据库设置则直接打回，请求不进入数据库
+                    // 如果临时令牌正确则直接进团体
+                    val messageDigest = MessageDigest.getInstance("SM3")
+                    val entryPasswordSM3 = if (entryPassword.isNullOrEmpty()) null else messageDigest.digest(entryPassword.toByteArray()).toHashString()
+                    val groupEntryPasswordIsOk = if (entryPassword.isNullOrEmpty()) false else {
+                        val groupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
+                        if (groupRow == null) throw Exception("服务端出现错误")
+                        val groupEntryPasswordSM3 = groupRow[Groups.entryPasswordSM3]
+                        if (entryPasswordSM3 != groupEntryPasswordSM3) {
+                            throw BadRequestException("临时令牌错误")
+                        } else {
+                            val groupPasswordEndTime = groupRow[Groups.passwordEndTime]
+                            groupPasswordEndTime != null && groupPasswordEndTime >= LocalDateTime.now()
+                        }
+                    }
                     val approvalId = Approvals.insert {
                         it[approvalType] = ApprovalTargetType.GROUP_JOIN
-                        it[status] = ApprovalStatus.PENDING
+                        it[status] = if (groupEntryPasswordIsOk) ApprovalStatus.AUTO_PASSED else ApprovalStatus.PENDING
                         it[createdAt] = LocalDateTime.now()
                         it[comment] = requesterComment
                     }[Approvals.approvalId]
@@ -91,23 +104,35 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         it[this.targetGroupId] = groupId
                         it[this.requesterUserId] = requesterUserId
                         it[this.requesterUserName] = requesterUserName
+                        it[this.requesterWeixinOpenId] = weixinOpenId
+                        if (!entryPassword.isNullOrEmpty()) it[this.entryPasswordSM3] = entryPasswordSM3
                     }
+                    if (groupEntryPasswordIsOk) {
+                        UserGroups.insert {
+                            it[this.userId] = requesterUserId
+                            it[this.groupId] = groupId
+                            it[this.permission] = UserRole.MEMBER
+                        }
+                    }
+                    groupEntryPasswordIsOk
                 }
-                call.respond("申请提交成功")
+                val textInfo = if (isJoin) "已成功进入团体" else "申请提交成功"
+                call.respond(textInfo)
             }
             get { // getGroupInfo
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
                 protectedRoute(weixinOpenId, groupId, setOf(RuntimePermission.ADMIN), CheckType.GROUP_ID, false) {
-                    val GroupInfo = transaction {
-                        val GroupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
-                        if (GroupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
-                        val GroupName = GroupRow[Groups.groupName]
-                        val createAt = GroupRow[Groups.createdAt]
+                    val groupInfo = transaction {
+                        val groupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
+                        if (groupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
+                        val groupName = groupRow[Groups.groupName]
+                        val createAt = groupRow[Groups.createdAt]
                         val memberList = UserGroups.select(UserGroups.groupId eq groupId).map { member ->
                             val userId = member[UserGroups.userId]
                             val userRow = Users.select(Users.userId eq userId).firstOrNull()
@@ -116,9 +141,9 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             val permission = member[UserGroups.permission]
                             GroupInfoMember(userId, userName, permission)
                         }
-                        GroupInfoResponse(groupId, GroupName, createAt.toKotlinLocalDateTime(), memberList)
+                        GroupInfoResponse(groupId, groupName, createAt.toKotlinLocalDateTime(), memberList = memberList)
                     }
-                    call.respond(HttpStatusCode.OK, Json.encodeToString<GroupInfoResponse>(GroupInfo))
+                    call.respond(HttpStatusCode.OK, Json.encodeToString<GroupInfoResponse>(groupInfo))
                 }
             }
         }
@@ -127,12 +152,19 @@ fun Route.groupRoute(appId: String, appSecret: String) {
 
 @Serializable
 data class GroupJoinRequest(
-    val requesterUserId: String, val requesterUserName: String, val requesterComment: String? = null
+    val requesterUserId: String,
+    val requesterUserName: String,
+    val requesterComment: String? = null,
+    val entryPassword: String? = null
 )
 
 @Serializable
 data class GroupInfoResponse(
-    val groupId: String, val groupName: String? = null, val createAt: kotlinx.datetime.LocalDateTime, val memberList: List<GroupInfoMember>? = null
+    val groupId: String,
+    val groupName: String? = null,
+    val createAt: kotlinx.datetime.LocalDateTime,
+    val isPasswordEnable: Boolean = false,
+    val memberList: List<GroupInfoMember>? = null
 )
 
 @Serializable

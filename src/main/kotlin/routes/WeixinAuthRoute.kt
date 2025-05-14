@@ -1,4 +1,4 @@
-package org.linlangwen.routes
+package org.lumina.routes
 
 import io.ktor.server.auth.*
 import io.ktor.server.auth.OAuth1aException.*
@@ -6,13 +6,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.linlangwen.generateJWT
-import org.linlangwen.models.UserGroups
-import org.linlangwen.models.Users
-import org.linlangwen.utils.code2WeixinOpenIdOrNull
-import org.linlangwen.utils.normalized
+import org.lumina.generateJWT
+import org.lumina.utils.code2WeixinOpenIdOrNull
+import org.lumina.utils.normalized
 
 /**
  * 微信认证路由
