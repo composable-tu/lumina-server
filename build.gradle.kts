@@ -10,7 +10,7 @@ plugins {
     kotlin("jvm") version "2.1.21"
     id("io.ktor.plugin") version "3.1.3"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.21"
-    id("org.sonarqube") version "6.1.0.5360"
+    id("org.sonarqube") version "6.2.0.5505"
 }
 
 group = "org.lumina"
