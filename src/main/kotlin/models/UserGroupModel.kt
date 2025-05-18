@@ -5,7 +5,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.javatime.datetime
-import org.jetbrains.exposed.sql.or
 import org.lumina.models.UserRole.*
 
 object Users : Table("users") {

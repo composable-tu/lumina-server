@@ -19,7 +19,6 @@ import org.lumina.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.lumina.models.*
 import org.lumina.utils.*
-import java.security.MessageDigest
 import java.time.LocalDateTime
 
 /**
