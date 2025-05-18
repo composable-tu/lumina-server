@@ -35,6 +35,11 @@ val SUPERADMIN_ADMIN_SET = setOf(SUPER_ADMIN, ADMIN)
 val SUPERADMIN_SELF_SET = setOf(SUPER_ADMIN, SELF)
 
 /**
+ * 运行时权限集：超级管理员、管理员、成员
+ */
+val SUPERADMIN_ADMIN_MEMBER_SET = setOf(SUPER_ADMIN, ADMIN, MEMBER)
+
+/**
  * 检查类型
  *
  * @property TASK_ID 基于任务 ID 的检查

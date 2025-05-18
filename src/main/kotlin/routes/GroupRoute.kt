@@ -27,7 +27,7 @@ import java.time.LocalDateTime
  *
  * 功能：
  * - 申请加入团体
- * - 获取团体基础信息
+ * - 团体管理员、超管、成员获取团体信息
  */
 fun Route.groupRoute(appId: String, appSecret: String) {
     authenticate {
@@ -80,8 +80,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     // 这里的判断逻辑是，如果进团体临时令牌没写就认为是应该经过审批加入请求，进入审批数据库
                     // 如果进团体临时令牌不符合数据库设置则直接打回，请求不进入数据库
                     // 如果临时令牌正确则直接进团体
-                    val messageDigest = MessageDigest.getInstance("SM3")
-                    val entryPasswordSM3 = if (entryPassword.isNullOrEmpty()) null else messageDigest.digest(entryPassword.toByteArray()).toHashString()
+                    val entryPasswordSM3 = if (entryPassword.isNullOrEmpty()) null else entryPassword.sm3()
                     val groupEntryPasswordIsOk = if (entryPassword.isNullOrEmpty()) false else {
                         val groupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
                         if (groupRow == null) throw Exception("服务端出现错误")
@@ -127,7 +126,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
-                protectedRoute(weixinOpenId, groupId, setOf(RuntimePermission.ADMIN), CheckType.GROUP_ID, false) {
+                protectedRoute(weixinOpenId, groupId, SUPERADMIN_ADMIN_MEMBER_SET, CheckType.GROUP_ID, false) {
                     val groupInfo = transaction {
                         val groupRow = Groups.select(Groups.groupId eq groupId).firstOrNull()
                         if (groupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
@@ -141,7 +140,8 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             val permission = member[UserGroups.permission]
                             GroupInfoMember(userId, userName, permission)
                         }
-                        GroupInfoResponse(groupId, groupName, createAt.toKotlinLocalDateTime(), memberList = memberList)
+                        val isPasswordEnable = groupRow[Groups.entryPasswordSM3] != null && groupRow[Groups.passwordEndTime] != null && groupRow[Groups.passwordEndTime]!! > LocalDateTime.now()
+                        GroupInfoResponse(groupId, groupName, createAt.toKotlinLocalDateTime(), isPasswordEnable, memberList = memberList)
                     }
                     call.respond(HttpStatusCode.OK, Json.encodeToString<GroupInfoResponse>(groupInfo))
                 }

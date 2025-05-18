@@ -1,5 +1,6 @@
 package org.lumina.utils
 
+import java.security.MessageDigest
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
@@ -52,5 +53,13 @@ fun Any.normalized(): Any {
  */
 fun ByteArray.toHashString(): String {
     return joinToString("") { "%02X".format(it) }
+}
+
+/**
+ * 计算字符串的 SM3 杂凑值并返回杂凑值的 Hex 字符串
+ */
+fun String.sm3():  String {
+    val messageDigest = MessageDigest.getInstance("SM3")
+    return messageDigest.digest(this.toByteArray()).toHashString()
 }
 
