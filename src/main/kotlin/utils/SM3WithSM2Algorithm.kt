@@ -10,9 +10,8 @@ import java.security.PublicKey
 import java.security.Signature
 import java.util.*
 
-class SM3WithSM2Algorithm(
-    private val privateKey: PrivateKey?, private val publicKey: PublicKey
-) : Algorithm("SM3WithSM2", "SM3WithSM2") {
+class SM3WithSM2Algorithm(private val privateKey: PrivateKey?, private val publicKey: PublicKey) :
+    Algorithm("SM3WithSM2", "SM3WithSM2") {
     companion object {
         fun getInstance(publicKey: PublicKey, privateKey: PrivateKey? = null): SM3WithSM2Algorithm {
             return SM3WithSM2Algorithm(privateKey, publicKey)
@@ -27,11 +26,9 @@ class SM3WithSM2Algorithm(
 
             val signature = Signature.getInstance("SM3WithSM2", KonaProvider.NAME)
             signature.initVerify(publicKey)
-            val data = "${jwt.header}.${jwt.payload}".toByteArray(Charsets.UTF_8)
+            val data = "${header}.${payload}".toByteArray(Charsets.UTF_8)
             signature.update(data)
-            if (!signature.verify(signatureBytes)) {
-                throw SignatureVerificationException(this)
-            }
+            if (!signature.verify(signatureBytes)) throw SignatureVerificationException(this)
         } catch (e: Exception) {
             throw SignatureVerificationException(this, e)
         }

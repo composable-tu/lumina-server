@@ -9,7 +9,7 @@ import org.lumina.routes.groupRoute
 import org.lumina.routes.weixinAuthRoute
 
 fun main(args: Array<String>) {
-   EngineMain.main(args)
+    EngineMain.main(args)
 }
 
 fun Application.module() {
@@ -18,12 +18,6 @@ fun Application.module() {
     configureSecurity()
     configureSerialization()
     configureDatabases()
-    configureRouting()
-    routing{
-        weixinAuthRoute(appId, appSecret)
-        groupRoute(appId, appSecret)
-        groupManagerRoute(appId, appSecret)
-        approvalRoute()
-    }
+    configureRouting(appId, appSecret)
 }
 

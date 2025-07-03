@@ -8,8 +8,8 @@ val tika_version="3.1.0"
 
 plugins {
     kotlin("jvm") version "2.1.21"
-    id("io.ktor.plugin") version "3.1.3"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.21"
+    id("io.ktor.plugin") version "3.2.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.0"
     id("org.sonarqube") version "6.2.0.5505"
 }
 
@@ -55,6 +55,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("io.ktor:ktor-server-config-yaml")
+    implementation("io.ktor:ktor-server-host-common:3.2.0")
+    implementation("io.ktor:ktor-server-status-pages:3.2.0")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
