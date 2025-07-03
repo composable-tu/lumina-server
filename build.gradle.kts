@@ -1,6 +1,6 @@
 val exposed_version = "0.61.0"
 val h2_version = "2.3.232"
-val kotlin_version="2.1.21"
+val kotlin_version="2.2.0"
 val logback_version="1.5.18"
 val postgres_version="42.7.5"
 val kona_sm_version="1.0.17"
