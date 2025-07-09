@@ -1,8 +1,8 @@
 package org.lumina.models
 
-import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.datetime
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.javatime.datetime
 import org.lumina.models.ApprovalStatus.*
 import org.lumina.models.ApprovalTargetType.*
 

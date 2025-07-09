@@ -1,7 +1,7 @@
 package org.lumina
 
 import io.ktor.server.application.*
-import io.ktor.server.routing.routing
+import io.ktor.server.routing.*
 import org.lumina.routes.approvalRoute
 import org.lumina.routes.groupManagerRoute
 import org.lumina.routes.groupRoute
