@@ -1,14 +1,14 @@
 val exposed_version = "1.0.0-beta-4"
 val h2_version = "2.3.232"
-val kotlin_version="2.2.0"
-val logback_version="1.5.18"
-val postgres_version="42.7.5"
-val kona_sm_version="1.0.17"
-val tika_version="3.1.0"
+val kotlin_version = "2.2.0"
+val logback_version = "1.5.18"
+val postgres_version = "42.7.5"
+val kona_sm_version = "1.0.17"
+val tika_version = "3.1.0"
 
 plugins {
     kotlin("jvm") version "2.2.0"
-    id("io.ktor.plugin") version "3.2.0"
+    id("io.ktor.plugin") version "3.2.1"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.0"
     id("org.sonarqube") version "6.2.0.5505"
     id("com.gradleup.shadow") version "8.3.6"
@@ -27,6 +27,12 @@ application {
 repositories {
     mavenCentral()
     google()
+}
+
+ktor {
+    fatJar {
+        archiveFileName = "lumina-server-all.jar"
+    }
 }
 
 sonar {
@@ -67,18 +73,3 @@ dependencies {
     implementation("org.apache.tika:tika-parsers:$tika_version")
 }
 
-buildscript {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-    }
-    dependencies {
-        classpath("com.gradleup.shadow:shadow-gradle-plugin:8.3.6")
-    }
-}
-
-apply(plugin = "com.gradleup.shadow")
-
-tasks.shadowJar {
-    archiveBaseName.set("Lumina")
-}

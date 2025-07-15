@@ -1,1 +1,1 @@
-rootProject.name = "LuminaPJ Server"
+rootProject.name = "LuminaPJ-Server"
