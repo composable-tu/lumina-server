@@ -17,24 +17,25 @@ import java.util.*
 
 fun Application.configureSecurity() {
     Security.addProvider(KonaProvider())
-    val jwtAudience = environment.config.property("jwt.audience").getString()
     val jwtDomain = environment.config.property("jwt.domain").getString()
     val jwtRealm = environment.config.property("jwt.realm").getString()
+    val jwtIssuer = environment.config.property("jwt.issuer").getString()
+    val jwtAudience = environment.config.property("jwt.audience").getString()
 
-    val publicKeyHex = environment.config.property("jwt.sm2.publicKey").getString()
-    val privateKeyHex = environment.config.property("jwt.sm2.privateKey").getString()
+    val signPublicKeyHex = environment.config.property("jwt.sm2.signPublicKey").getString()
+    val signPrivateKeyHex = environment.config.property("jwt.sm2.signPrivateKey").getString()
 
-    val keyPair = generateOrLoadSM2KeyPair(publicKeyHex, privateKeyHex)
+    val keyPair = generateOrLoadSM2KeyPair(signPublicKeyHex, signPrivateKeyHex)
 
     authentication {
         jwt {
             realm = jwtRealm
             verifier(
-                JWT.require(SM3WithSM2Algorithm(null, keyPair.public)).withAudience(jwtAudience).withIssuer(jwtDomain)
-                    .acceptLeeway(10).build()
+                JWT.require(SM3WithSM2Algorithm(null, keyPair.public)).withAudience(jwtAudience).withIssuer(jwtIssuer)
+                    .withSubject(jwtDomain).acceptLeeway(10).build()
             )
             validate { credential ->
-                if (credential.payload.audience.contains(jwtAudience)) JWTPrincipal(credential.payload) else null
+                if (credential.payload.audience.singleOrNull() == jwtAudience) JWTPrincipal(credential.payload) else null
             }
             challenge { _, _ ->
                 call.respondText("无效的 Token", status = HttpStatusCode.Unauthorized)
@@ -45,16 +46,19 @@ fun Application.configureSecurity() {
 
 fun Route.generateJWT(weixinOpenId: String): String {
     // 加载密钥对
-    val publicKeyHex = environment.config.property("jwt.sm2.publicKey").getString()
-    val privateKeyHex = environment.config.property("jwt.sm2.privateKey").getString()
-    val keyPair = generateOrLoadSM2KeyPair(publicKeyHex, privateKeyHex)
+    val signPublicKeyHex = environment.config.property("jwt.sm2.signPublicKey").getString()
+    val signPrivateKeyHex = environment.config.property("jwt.sm2.signPrivateKey").getString()
+    val keyPair = generateOrLoadSM2KeyPair(signPublicKeyHex, signPrivateKeyHex)
 
     // 从配置读取参数
-    val issuer = environment.config.property("jwt.issuer").getString()
-    val expiresIn = environment.config.property("jwt.expiresIn").getString().toLongOrNull() ?: 604800
+    val jwtDomain = environment.config.property("jwt.domain").getString()
+    val jwtIssuer = environment.config.property("jwt.issuer").getString()
+    val jwtAudience = environment.config.property("jwt.audience").getString()
+    val jwtExpiresIn = environment.config.property("jwt.expiresIn").getString().toLongOrNull() ?: 604800
 
-    return JWT.create().withSubject(weixinOpenId).withClaim("weixinOpenId", weixinOpenId).withIssuer(issuer).withAudience(environment.config.property("jwt.audience").getString())
-        .withIssuedAt(Date()).withExpiresAt(Date(System.currentTimeMillis() + expiresIn * 1000))
+    return JWT.create().withClaim("weixinOpenId", weixinOpenId).withIssuer(jwtIssuer).withAudience(jwtAudience)
+        .withSubject(jwtDomain).withIssuedAt(Date())
+        .withExpiresAt(Date(System.currentTimeMillis() + jwtExpiresIn * 1000))
         .sign(SM3WithSM2Algorithm(keyPair.private, keyPair.public))
 }
 
