@@ -1,5 +1,6 @@
 package org.lumina.routes
 
+import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.OAuth1aException.*
 import io.ktor.server.request.*
@@ -15,6 +16,7 @@ import org.lumina.utils.normalized
  *
  * 功能：
  * - 在微信小程序端未保存 JWT 的情况下，POST `/weixin/login` 得到服务端加密的 Weixin Open ID JWT
+ * - 微信侧 GET `/weixin/validate` 验证 JWT 是否仍然有效
  */
 fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
     route("/weixin") {
@@ -26,7 +28,9 @@ fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
             call.respond(WeixinLoginResponse(jwt))
         }
         authenticate {
-
+            get("/validate"){
+                call.respond(HttpStatusCode.OK)
+            }
         }
     }
 }

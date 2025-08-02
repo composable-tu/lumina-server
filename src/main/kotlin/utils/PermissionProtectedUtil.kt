@@ -1,10 +1,8 @@
 package org.lumina.utils
 
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 import org.lumina.models.*
@@ -84,12 +82,8 @@ suspend fun Route.protectedRoute(
                     "SOTER 验证参数缺失"
                 )
                 val weixinSoterCheck = weixinSoterCheck(
-                    appId,
-                    appSecret,
-                    WeixinSoterCheckRequest(
-                        weixinOpenId,
-                        soterResultFromUser.json_string,
-                        soterResultFromUser.json_signature
+                    appId, appSecret, WeixinSoterCheckRequest(
+                        weixinOpenId, soterResultFromUser.json_string, soterResultFromUser.json_signature
                     )
                 )
                 if (!weixinSoterCheck) return@newSuspendedTransaction setError("SOTER 验证失败")
@@ -158,12 +152,12 @@ fun Transaction.protectedRouteWithTaskId(
 fun Transaction.protectedRouteWithApproveId(
     weixinOpenId: String, userId: String, approveId: Long, permissions: Set<RuntimePermission>
 ): Boolean {
-    val approveRow = Approvals.select(Approvals.approvalId eq approveId).firstOrNull()
+    val approveRow = Approvals.selectAll().where { Approvals.approvalId eq approveId }.firstOrNull()
         ?: throw IllegalArgumentException("审批不存在")
     return when (approveRow[Approvals.approvalType]) {
         ApprovalTargetType.GROUP_JOIN -> {
             val joinGroupApprovalRow =
-                JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approveId).firstOrNull()
+                JoinGroupApprovals.selectAll().where { JoinGroupApprovals.approvalId eq approveId }.firstOrNull()
                     ?: throw IllegalArgumentException("审批不存在")
             val requesterWeixinOpenId = joinGroupApprovalRow[JoinGroupApprovals.requesterWeixinOpenId]
             val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]
@@ -185,10 +179,10 @@ fun Transaction.protectedRouteWithApproveId(
 }
 
 /**
- * 在数据库中查询用户是否启用高危操作需经过腾讯 SOTER 生物认证
+ * 在数据库中查询用户是否启用重要操作需经过腾讯 SOTER 生物认证保护
  */
 fun Transaction.isUserSoterEnabledWithUserId(userId: String): Boolean {
-    return Users.select(Users.userId eq userId).firstOrNull()?.get(Users.isSoterEnabled)
+    return Users.selectAll().where { Users.userId eq userId }.firstOrNull()?.get(Users.isSoterEnabled)
         ?: throw IllegalArgumentException("服务器错误")
 }
 

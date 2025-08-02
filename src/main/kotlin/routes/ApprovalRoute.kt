@@ -11,12 +11,10 @@ import kotlinx.datetime.toKotlinLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -46,9 +44,10 @@ fun Route.approvalRoute() {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@get call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
@@ -60,8 +59,9 @@ fun Route.approvalRoute() {
                     weixinOpenId, approvalIdString, SUPERADMIN_ADMIN_SELF_SET, CheckType.APPROVAL_ID, false
                 ) {
                     val approvalInfo = transaction {
-                        val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
+                        val approvalRow =
+                            Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
+                                ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         when (approvalType) {
                             ApprovalTargetType.TASK_CREATION -> {
@@ -82,9 +82,10 @@ fun Route.approvalRoute() {
             }
 
             get("/self") {
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val approvalInfoList = transaction {
                     // val userId = weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException(INVALID_JWT)
                     val approvalInfoList = mutableListOf<ApprovalInfo>()
@@ -107,9 +108,10 @@ fun Route.approvalRoute() {
 
             route("/admin") {
                 get {
-                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                        HttpStatusCode.Unauthorized, INVALID_JWT
-                    )
+                    val weixinOpenId =
+                        call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                            HttpStatusCode.Unauthorized, INVALID_JWT
+                        )
                     val approvalInfoList = transaction {
                         val userId =
                             weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalArgumentException(INVALID_JWT)
@@ -131,9 +133,10 @@ fun Route.approvalRoute() {
                     )
                 }
                 get("/{groupId}") {
-                    val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
-                        HttpStatusCode.Unauthorized, INVALID_JWT
-                    )
+                    val weixinOpenId =
+                        call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                            HttpStatusCode.Unauthorized, INVALID_JWT
+                        )
                     val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
                         HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                     )
@@ -160,9 +163,10 @@ fun Route.approvalRoute() {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
@@ -183,8 +187,9 @@ fun Route.approvalRoute() {
                     soterResultFromUser = actionRequest.soterInfo
                 ) {
                     transaction {
-                        val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
+                        val approvalRow =
+                            Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
+                                ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         if (actionRequest.approvalType != approvalType.toString()) throw IllegalArgumentException("用户端传递的审批类型与实际审批类型不匹配")
                         Approvals.update({ Approvals.approvalId eq approvalId }) {
@@ -199,9 +204,10 @@ fun Route.approvalRoute() {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                 )
-                val weixinOpenId = call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
-                    HttpStatusCode.Unauthorized, INVALID_JWT
-                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
                 val approvalId = try {
                     approvalIdString.toLong()
                 } catch (_: NumberFormatException) {
@@ -218,8 +224,9 @@ fun Route.approvalRoute() {
                     actionRequest.soterInfo
                 ) {
                     transaction {
-                        val approvalRow = Approvals.select(Approvals.approvalId eq approvalId).firstOrNull()
-                            ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
+                        val approvalRow =
+                            Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
+                                ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         if (actionRequest.approvalType != approvalType.toString()) throw IllegalArgumentException("用户端传递的审批类型与实际审批类型不匹配")
                         when (approvalType) {
@@ -229,7 +236,8 @@ fun Route.approvalRoute() {
 
                             ApprovalTargetType.GROUP_JOIN -> {
                                 val joinGroupApprovalRow =
-                                    JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approvalId).firstOrNull()
+                                    JoinGroupApprovals.selectAll().where { JoinGroupApprovals.approvalId eq approvalId }
+                                        .firstOrNull()
                                         ?: throw IllegalStateException("服务器错误")
                                 when (actionRequest.action) {
                                     APPROVE -> {
@@ -351,7 +359,8 @@ data class JoinGroupApprovalInfo(
 fun Transaction.buildApprovalInfo(approvalRow: ResultRow): ApprovalInfo {
     val reviewer = approvalRow[Approvals.reviewer]
     val reviewerName =
-        if (reviewer == null) null else Users.select(Users.userId eq reviewer).firstOrNull()?.get(Users.userName)
+        if (reviewer == null) null else Users.selectAll().where { Users.userId eq reviewer }.firstOrNull()
+            ?.get(Users.userName)
     return ApprovalInfo(
         approvalId = approvalRow[Approvals.approvalId],
         createdAt = approvalRow[Approvals.createdAt].toKotlinLocalDateTime(),
@@ -372,11 +381,13 @@ fun Transaction.buildApprovalInfo(approvalRow: ResultRow): ApprovalInfo {
  * @return JoinGroupApprovalInfo 对象
  */
 fun Transaction.buildJoinGroupApprovalInfo(approvalId: Long, approvalRow: ResultRow): JoinGroupApprovalInfo {
-    val joinGroupApprovalRow = JoinGroupApprovals.select(JoinGroupApprovals.approvalId eq approvalId).firstOrNull()
-        ?: throw IllegalStateException("服务器错误")
+    val joinGroupApprovalRow =
+        JoinGroupApprovals.selectAll().where { JoinGroupApprovals.approvalId eq approvalId }.firstOrNull()
+            ?: throw IllegalStateException("服务器错误")
     val reviewer = approvalRow[Approvals.reviewer]
     val reviewerName =
-        if (reviewer == null) null else Users.select(Users.userId eq reviewer).firstOrNull()?.get(Users.userName)
+        if (reviewer == null) null else Users.selectAll().where { Users.userId eq reviewer }.firstOrNull()
+            ?.get(Users.userName)
     return JoinGroupApprovalInfo(
         approvalId = approvalId,
         targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId],

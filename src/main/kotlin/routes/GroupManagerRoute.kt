@@ -69,9 +69,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     }
                     val conflictUserList = groupManagerResponse.conflictUserList
                     val noPermissionUserList = groupManagerResponse.noPermissionUserList
-                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond(
-                        HttpStatusCode.OK, message = "用户移除成功"
-                    ) else call.respond(
+                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond("用户移除成功") else call.respond(
                         HttpStatusCode.NotFound, Json.encodeToString<GroupManagerResponse>(groupManagerResponse)
                     )
                 }
@@ -108,7 +106,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                             it[passwordEndTime] = endDateTime
                         }
                     }
-                    call.respond(HttpStatusCode.OK, "临时密码设置成功")
+                    call.respond("临时密码设置成功")
                 }
             }
             post("/setAdmin") {
@@ -147,9 +145,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     }
                     val conflictUserList = groupManagerResponse.conflictUserList
                     val noPermissionUserList = groupManagerResponse.noPermissionUserList
-                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond(
-                        HttpStatusCode.OK, message = "设置管理员成功"
-                    ) else call.respond(
+                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond("设置管理员成功") else call.respond(
                         HttpStatusCode.NotFound, Json.encodeToString<GroupManagerResponse>(groupManagerResponse)
                     )
                 }
@@ -190,9 +186,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     }
                     val conflictUserList = groupManagerResponse.conflictUserList
                     val noPermissionUserList = groupManagerResponse.noPermissionUserList
-                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond(
-                        HttpStatusCode.OK, message = "取消管理员成功"
-                    ) else call.respond(
+                    if (conflictUserList.isNullOrEmpty() && noPermissionUserList.isNullOrEmpty()) call.respond(message = "取消管理员成功") else call.respond(
                         HttpStatusCode.NotFound, Json.encodeToString<GroupManagerResponse>(groupManagerResponse)
                     )
                 }

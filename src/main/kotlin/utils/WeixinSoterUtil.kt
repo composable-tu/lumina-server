@@ -13,8 +13,8 @@ import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
  * 微信 Soter 生物认证请求体
  *
  * @property openid 微信 Open ID
- * @property json_string 签名字符串，从微信小程序端调用 wx.startSoterAuthentication 获取
- * @property json_signature 签名，从微信小程序端调用 wx.startSoterAuthentication 获取
+ * @property json_string 签名字符串，从微信小程序端调用 `wx.startSoterAuthentication` 获取
+ * @property json_signature 签名，从微信小程序端调用 `wx.startSoterAuthentication` 获取
  */
 @Serializable
 data class WeixinSoterCheckRequest(

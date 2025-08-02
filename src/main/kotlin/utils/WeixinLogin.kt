@@ -7,9 +7,8 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.v1.core.Transaction
-import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 import org.lumina.models.Users
 
@@ -45,17 +44,19 @@ suspend fun code2Session(appId: String, appSecret: String, code: String): Weixin
 /**
  * 将微信小程序用户登录临时凭证转为微信小程序 Open ID（如果转换失败则返回 Null）
  */
-suspend fun code2WeixinOpenIdOrNull(appId: String, appSecret: String, code: String) = code2Session(appId, appSecret, code).openid
+suspend fun code2WeixinOpenIdOrNull(appId: String, appSecret: String, code: String) =
+    code2Session(appId, appSecret, code).openid
 
 /**
  * 将微信小程序用户登录临时凭证转为微信小程序 Union ID（如果转换失败则返回 Null）
  */
-suspend fun code2WeixinUnionIdOrNull(appId: String, appSecret: String, code: String)= code2Session(appId, appSecret, code).unionid
+suspend fun code2WeixinUnionIdOrNull(appId: String, appSecret: String, code: String) =
+    code2Session(appId, appSecret, code).unionid
 
 /**
  * 从数据库中获取微信小程序用户 ID（如果转换失败则返回 Null）
  */
 fun Transaction.getUserIdByWeixinOpenIdOrNullFromDB(openId: String): String? {
-    val user = Users.select(Users.weixinOpenId eq openId).firstOrNull()
+    val user = Users.selectAll().where { Users.weixinOpenId eq openId }.firstOrNull()
     return user?.get(Users.userId)
 }
