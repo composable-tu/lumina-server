@@ -11,4 +11,5 @@ object ReturnInvalidReasonFields {
     const val INVALID_APPROVAL_ID = "无效的审批 ID"
     const val INVALID_JWT = "无效的 JWT"
     const val INVALID_SOTER = "SOTER 生物验证未通过"
+    const val USER_NOT_FOUND = "未找到用户信息，可能是用户尚未加入任意团体"
 }

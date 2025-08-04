@@ -37,7 +37,7 @@ import org.lumina.utils.*
  * - 审批创建者撤回自己的审批
  * - 管理员对审批进行通过或拒绝操作
  */
-fun Route.approvalRoute() {
+fun Route.approvalRoute(appId: String, appSecret: String) {
     authenticate {
         route("/approvals") {
             get("/{approvalId}") {

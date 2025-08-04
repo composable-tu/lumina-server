@@ -9,7 +9,7 @@ import org.lumina.models.UserRole.*
 
 object Users : Table("users") {
     val userId = text("user_id").uniqueIndex()
-    val weixinOpenId = text("weixin_open_id").uniqueIndex().nullable()
+    val weixinOpenId = text("weixin_open_id").uniqueIndex()
     val weixinUnionId = text("weixin_union_id").uniqueIndex().nullable()
     val userName = text("user_name").nullable()
     val isSoterEnabled = bool("is_soter_enabled").default(false)

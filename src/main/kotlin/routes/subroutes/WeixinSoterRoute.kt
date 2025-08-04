@@ -14,6 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_SOTER
+import org.lumina.fields.ReturnInvalidReasonFields.USER_NOT_FOUND
 import org.lumina.models.Users
 import org.lumina.utils.SoterResultFromUser
 import org.lumina.utils.WeixinSoterCheckRequest
@@ -38,7 +39,7 @@ fun Routing.weixinSoterRoute(appId: String, appSecret: String) {
                     )
                 val isUserSoterEnabled = transaction {
                     val userRow = Users.selectAll().where { Users.weixinOpenId eq weixinOpenId }.firstOrNull()
-                        ?: throw AuthConfigException("未找到用户信息，可能是用户尚未加入任意团体")
+                        ?: return@transaction false
                     return@transaction userRow[Users.isSoterEnabled]
                 }
                 call.respond(WeixinSoterCheckResponse(isUserSoterEnabled))
@@ -57,7 +58,7 @@ fun Routing.weixinSoterRoute(appId: String, appSecret: String) {
                 if (!isSoterPassed) throw AuthenticationException(INVALID_SOTER)
                 transaction {
                     val userRow = Users.selectAll().where { Users.weixinOpenId eq weixinOpenId }.firstOrNull()
-                        ?: throw AuthConfigException("未找到用户信息，可能是用户尚未加入任意团体")
+                        ?: throw AuthConfigException(USER_NOT_FOUND)
                     Users.update({ Users.userId eq userRow[Users.userId] }) {
                         it[isSoterEnabled] = when (request.action) {
                             SoterAction.ENABLE -> true
@@ -74,7 +75,9 @@ fun Routing.weixinSoterRoute(appId: String, appSecret: String) {
 @Serializable
 private enum class SoterAction(val value: String) {
     @SerialName("enable")
-    ENABLE("enable"), @SerialName("disable")
+    ENABLE("enable"),
+
+    @SerialName("disable")
     DISABLE("disable");
 }
 

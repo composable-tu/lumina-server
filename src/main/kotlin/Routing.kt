@@ -11,8 +11,9 @@ fun Application.configureRouting(appId: String, appSecret: String) {
         weixinAuthRoute(appId, appSecret)
         groupRoute(appId, appSecret)
         groupManagerRoute(appId, appSecret)
-        approvalRoute()
+        approvalRoute(appId, appSecret)
         weixinSoterRoute(appId, appSecret)
+        userRoute(appId, appSecret)
         if (environment.isDev()) devRoute(appId, appSecret)
     }
 }
