@@ -189,7 +189,7 @@ data class JoinedGroupInfo(
 )
 
 @Serializable
-data class GroupJoinRequest(
+private data class GroupJoinRequest(
     val requesterUserId: String,
     val requesterUserName: String,
     val requesterComment: String? = null,
@@ -197,7 +197,7 @@ data class GroupJoinRequest(
 )
 
 @Serializable
-data class GroupInfoResponse(
+private data class GroupInfoResponse(
     val groupId: String,
     val groupName: String? = null,
     val createAt: kotlinx.datetime.LocalDateTime,

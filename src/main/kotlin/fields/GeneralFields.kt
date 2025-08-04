@@ -10,4 +10,5 @@ object ReturnInvalidReasonFields {
     const val INVALID_TASK_ID = "无效的任务 ID"
     const val INVALID_APPROVAL_ID = "无效的审批 ID"
     const val INVALID_JWT = "无效的 JWT"
+    const val INVALID_SOTER = "SOTER 生物验证未通过"
 }

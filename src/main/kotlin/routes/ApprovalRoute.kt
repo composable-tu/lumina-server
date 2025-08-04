@@ -280,7 +280,7 @@ fun Route.approvalRoute() {
 }
 
 @Serializable
-data class ApprovalActionRequest(
+private data class ApprovalActionRequest(
     val approvalType: String? = null, val action: String? = null, val soterInfo: SoterResultFromUser? = null
 )
 

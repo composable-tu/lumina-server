@@ -35,7 +35,7 @@ fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
     }
 }
 @Serializable
-data class WeixinLoginRequest(val code: String)
+private data class WeixinLoginRequest(val code: String)
 
 @Serializable
-data class WeixinLoginResponse(val jwt: String)
+private data class WeixinLoginResponse(val jwt: String)

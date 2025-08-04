@@ -202,7 +202,7 @@ data class GroupManagerUser(
 )
 
 @Serializable
-data class GroupManagerRequest(
+private data class GroupManagerRequest(
     val groupManageUserList: List<GroupManagerUser>, val soterInfo: SoterResultFromUser? = null
 )
 
@@ -213,11 +213,11 @@ data class GroupManagerRequest(
  * @property soterInfo SOTER 生物验证信息
  */
 @Serializable
-data class SetGroupPasswordRequest(
+private data class SetGroupPasswordRequest(
     val password: String, val validity: Long, val soterInfo: SoterResultFromUser? = null
 )
 
 @Serializable
-data class GroupManagerResponse(
+private data class GroupManagerResponse(
     val conflictUserList: List<GroupManagerUser>? = null, val noPermissionUserList: List<GroupManagerUser>? = null
 )

@@ -18,7 +18,7 @@ import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
  */
 @Serializable
 data class WeixinSoterCheckRequest(
-    val openid: String? = null, val json_string: String? = null, val json_signature: String? = null
+    val openid: String, val json_string: String, val json_signature: String
 )
 
 /**
@@ -34,12 +34,12 @@ data class WeixinSoterCheckResponse(
 )
 
 @Serializable
-data class SoterResultFromUser(val json_string: String? = null, val json_signature: String? = null)
+data class SoterResultFromUser(val json_string: String, val json_signature: String)
 
 private val client = HttpClient(CIO)
 private val json = Json { ignoreUnknownKeys = true }
 
-suspend fun weixinSoterCheck(appId: String, appSecret: String,request: WeixinSoterCheckRequest): Boolean {
+suspend fun weixinSoterCheck(appId: String, appSecret: String, request: WeixinSoterCheckRequest): Boolean {
     val accessToken =
         getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
     val response = client.post {
