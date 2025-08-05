@@ -11,7 +11,7 @@ plugins {
     id("io.ktor.plugin") version "3.2.3"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.0"
     id("org.sonarqube") version "6.2.0.5505"
-    id("com.gradleup.shadow") version "8.3.6"
+    id("com.gradleup.shadow") version "8.3.9"
     id("com.github.ben-manes.versions") version "0.52.0"
 }
 
