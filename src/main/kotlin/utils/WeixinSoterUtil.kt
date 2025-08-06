@@ -2,9 +2,11 @@ package org.lumina.utils
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
@@ -36,7 +38,11 @@ data class WeixinSoterCheckResponse(
 @Serializable
 data class SoterResultFromUser(val json_string: String, val json_signature: String)
 
-private val client = HttpClient(CIO)
+private val client = HttpClient(CIO) {
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
+    }
+}
 private val json = Json { ignoreUnknownKeys = true }
 
 suspend fun weixinSoterCheck(appId: String, appSecret: String, request: WeixinSoterCheckRequest): Boolean {
@@ -49,6 +55,7 @@ suspend fun weixinSoterCheck(appId: String, appSecret: String, request: WeixinSo
             path("cgi-bin", "soter", "verify_signature")
             parameters.append("access_token", accessToken)
         }
+        contentType(ContentType.Application.Json)
         setBody(request)
     }
     val result = json.decodeFromString<WeixinSoterCheckResponse>(response.bodyAsText())

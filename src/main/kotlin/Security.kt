@@ -15,6 +15,9 @@ import org.lumina.utils.SM3WithSM2Algorithm
 import java.security.*
 import java.util.*
 
+/**
+ * TODO：还需实现 JWE 逻辑
+ */
 fun Application.configureSecurity() {
     Security.addProvider(KonaProvider())
     val jwtDomain = environment.config.property("jwt.domain").getString()

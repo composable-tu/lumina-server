@@ -1,10 +1,12 @@
 package org.lumina.utils
 
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -37,7 +39,11 @@ data class WeixinAccessTokenResponse(
     val access_token: String? = null, val expires_in: Int? = null, val errcode: Int? = null, val errmsg: String? = null
 )
 
-private val client = HttpClient(CIO)
+private val client = HttpClient(CIO) {
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
+    }
+}
 private val tokenMutex = Mutex()
 
 /**
@@ -48,9 +54,9 @@ private val tokenMutex = Mutex()
  * @return 接口调用凭据或 null
  * @see [微信开放文档](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/mp-access-token/getAccessToken.html)
  */
-suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String?  = tokenMutex.withLock {
+suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String? = tokenMutex.withLock {
     val now = System.currentTimeMillis()
-    if (cachedAccessToken!= null && now < tokenExpiryTime) return cachedAccessToken
+    if (cachedAccessToken != null && now < tokenExpiryTime) return cachedAccessToken
 
     val response = client.get {
         url {
@@ -64,7 +70,7 @@ suspend fun getWeixinAccessTokenOrNull(appId: String, appSecret: String): String
             }
         }
     }
-    val responseBody = response.body<WeixinAccessTokenResponse>()
+    val responseBody = json.decodeFromString<WeixinAccessTokenResponse>(response.bodyAsText())
     val token = responseBody.access_token
     val expiresIn = responseBody.expires_in
     tokenExpiryTime = if (expiresIn != null) now + expiresIn * 1000L else 0L
