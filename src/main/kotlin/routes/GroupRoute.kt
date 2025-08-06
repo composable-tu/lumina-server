@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
+import org.lumina.fields.ReturnInvalidReasonFields.UNSAFE_CONTENT
 import org.lumina.models.*
 import org.lumina.utils.*
 import java.time.LocalDateTime
@@ -65,7 +66,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     val requesterUserId = request.requesterUserId
                     val requesterUserName = request.requesterUserName
                     val requesterComment = request.requesterComment
-                    val entryPassword = request.entryPassword
+                    val groupPreAuthToken = request.groupPreAuthToken
                     transaction {
                         val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
                         if (userIdFromDB != null) {
@@ -97,16 +98,16 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             nickname = requesterUserName
                         )
                     )
-                    if (!weixinContentSecurityCheck) throw BadRequestException("您提交的内容被微信判定为存在违规内容，请修改后再次提交")
+                    if (!weixinContentSecurityCheck) throw BadRequestException(UNSAFE_CONTENT)
                     val isJoin = transaction {
                         // 这里的判断逻辑是，如果进团体临时令牌没写就认为是应该经过审批加入请求，进入审批数据库
                         // 如果进团体临时令牌不符合数据库设置则直接打回，请求不进入数据库
                         // 如果临时令牌正确则直接进团体
-                        val entryPasswordSM3 = if (entryPassword.isNullOrEmpty()) null else entryPassword.sm3()
-                        val groupEntryPasswordIsOk = if (entryPassword.isNullOrEmpty()) false else {
+                        val entryPasswordSM3 = if (groupPreAuthToken.isNullOrEmpty()) null else groupPreAuthToken.sm3()
+                        val groupEntryPasswordIsOk = if (groupPreAuthToken.isNullOrEmpty()) false else {
                             val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
                             if (groupRow == null) throw Exception("服务端出现错误")
-                            val groupEntryPasswordSM3 = groupRow[Groups.entryPasswordSM3]
+                            val groupEntryPasswordSM3 = groupRow[Groups.groupPreAuthTokenSM3]
                             if (entryPasswordSM3 != groupEntryPasswordSM3) {
                                 throw BadRequestException("临时令牌错误")
                             } else {
@@ -127,7 +128,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             it[this.requesterUserId] = requesterUserId
                             it[this.requesterUserName] = requesterUserName
                             it[this.requesterWeixinOpenId] = weixinOpenId
-                            if (!entryPassword.isNullOrEmpty()) it[this.entryPasswordSM3] = entryPasswordSM3
+                            if (!groupPreAuthToken.isNullOrEmpty()) it[this.entryPasswordSM3] = entryPasswordSM3
                         }
                         if (groupEntryPasswordIsOk) {
                             UserGroups.insert {
@@ -165,13 +166,13 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                                     val permission = member[UserGroups.permission]
                                     GroupInfoMember(userId, userName, permission)
                                 }
-                            val isPasswordEnable =
-                                groupRow[Groups.entryPasswordSM3] != null && groupRow[Groups.passwordEndTime] != null && groupRow[Groups.passwordEndTime]!! > LocalDateTime.now()
+                            val isPreAuthTokenEnable =
+                                groupRow[Groups.groupPreAuthTokenSM3] != null && groupRow[Groups.passwordEndTime] != null && groupRow[Groups.passwordEndTime]!! > LocalDateTime.now()
                             GroupInfoResponse(
                                 groupId,
                                 groupName,
                                 createAt.toKotlinLocalDateTime(),
-                                isPasswordEnable,
+                                isPreAuthTokenEnable,
                                 memberList = memberList
                             )
                         }
@@ -193,7 +194,7 @@ private data class GroupJoinRequest(
     val requesterUserId: String,
     val requesterUserName: String,
     val requesterComment: String? = null,
-    val entryPassword: String? = null
+    val groupPreAuthToken: String? = null
 )
 
 @Serializable
@@ -201,7 +202,7 @@ private data class GroupInfoResponse(
     val groupId: String,
     val groupName: String? = null,
     val createAt: kotlinx.datetime.LocalDateTime,
-    val isPasswordEnable: Boolean = false,
+    val isPreAuthTokenEnable: Boolean = false,
     val memberList: List<GroupInfoMember>? = null
 )
 

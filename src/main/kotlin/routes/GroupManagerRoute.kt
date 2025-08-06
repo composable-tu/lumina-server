@@ -16,6 +16,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_GROUP_ID
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
+import org.lumina.fields.ReturnInvalidReasonFields.UNSAFE_CONTENT
 import org.lumina.models.Groups
 import org.lumina.models.UserGroups
 import org.lumina.models.UserRole
@@ -84,16 +85,16 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     )
                 val request = call.receive<SetGroupPasswordRequest>().normalized() as? SetGroupPasswordRequest
                     ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
-                val password = request.password
+                val preAuthToken = request.preAuthToken
                 val isContentSafety = temporaryWeixinContentSecurityCheck(
                     appId, appSecret, WeixinContentSecurityRequest(
-                        content = password,
+                        content = preAuthToken,
                         scene = WeixinContentSecurityScene.SCENE_COMMENT,
                         openid = weixinOpenId,
                     )
                 )
                 if (!isContentSafety) return@post call.respond(
-                    HttpStatusCode.BadRequest, "您提交的内容被微信判定为存在违规内容，请修改后再次提交"
+                    HttpStatusCode.BadRequest, UNSAFE_CONTENT
                 )
                 if (request.validity <= 0) call.respond(HttpStatusCode.BadRequest, "请输入正确的有效期")
                 val endDateTime = LocalDateTime.now().plusMinutes(request.validity)
@@ -102,7 +103,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                 ) {
                     transaction {
                         Groups.update({ Groups.groupId eq groupId }) {
-                            it[entryPasswordSM3] = password.sm3()
+                            it[groupPreAuthTokenSM3] = preAuthToken.sm3()
                             it[passwordEndTime] = endDateTime
                         }
                     }
@@ -207,14 +208,14 @@ private data class GroupManagerRequest(
 )
 
 /**
- * 设置群聊临时密码
- * @property password 临时密码
- * @property validity 临时密码有效期（整数，单位为分钟）
+ * 设置团体预授权凭证
+ * @property preAuthToken 预授权凭证
+ * @property validity 预授权凭证有效期（整数，单位为分钟）
  * @property soterInfo SOTER 生物验证信息
  */
 @Serializable
 private data class SetGroupPasswordRequest(
-    val password: String, val validity: Long, val soterInfo: SoterResultFromUser? = null
+    val preAuthToken: String, val validity: Long, val soterInfo: SoterResultFromUser? = null
 )
 
 @Serializable

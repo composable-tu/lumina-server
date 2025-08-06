@@ -29,7 +29,7 @@ object Groups : Table("groups") {
     val groupName = text("group_name").nullable()
     val superAdmin =
         reference("super_admin_id", Users.userId, onDelete = ReferenceOption.NO_ACTION) // 超级管理员（只唯一，不可为空，可转让）
-    val entryPasswordSM3 = text("entry_password_sm3").nullable()
+    val groupPreAuthTokenSM3 = text("group_pre_auth_token_sm3").nullable()
     val passwordEndTime = datetime("password_end_time").nullable()
     val createdAt = datetime("created_at")
     override val primaryKey = PrimaryKey(groupId)
