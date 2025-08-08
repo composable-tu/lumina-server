@@ -8,8 +8,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -39,8 +40,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         HttpStatusCode.Unauthorized, INVALID_JWT
                     )
                 val joinedGroupList: List<JoinedGroupInfo> = transaction {
-                    val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
-                    if (userIdFromDB == null) return@transaction emptyList()
+                    val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId) ?: return@transaction emptyList()
                     UserGroups.selectAll().where { UserGroups.userId eq userIdFromDB }.map {
                         val groupId = it[UserGroups.groupId]
                         val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
@@ -107,12 +107,12 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         val groupEntryPasswordIsOk = if (groupPreAuthToken.isNullOrEmpty()) false else {
                             val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
                             if (groupRow == null) throw Exception("服务端出现错误")
-                            val groupEntryPasswordSM3 = groupRow[Groups.groupPreAuthTokenSM3]
-                            if (entryPasswordSM3 != groupEntryPasswordSM3) {
+                            val groupPreAuthTokenSM3 = groupRow[Groups.groupPreAuthTokenSM3]
+                            if (entryPasswordSM3 != groupPreAuthTokenSM3) {
                                 throw BadRequestException("临时令牌错误")
                             } else {
-                                val groupPasswordEndTime = groupRow[Groups.passwordEndTime]
-                                groupPasswordEndTime != null && groupPasswordEndTime >= LocalDateTime.now()
+                                val groupPreAuthTokenEndTime = groupRow[Groups.preAuthTokenEndTime]
+                                groupPreAuthTokenEndTime != null && groupPreAuthTokenEndTime >= LocalDateTime.now()
                             }
                         }
                         val approvalId = Approvals.insert {
@@ -152,7 +152,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         HttpStatusCode.BadRequest, INVALID_GROUP_ID
                     )
                     protectedRoute(weixinOpenId, groupId, SUPERADMIN_ADMIN_MEMBER_SET, CheckType.GROUP_ID, false) {
-                        val groupInfo = transaction {
+                        val groupInfo: GroupInfoResponse = transaction {
                             val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
                             if (groupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
                             val groupName = groupRow[Groups.groupName]
@@ -167,16 +167,12 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                                     GroupInfoMember(userId, userName, permission)
                                 }
                             val isPreAuthTokenEnable =
-                                groupRow[Groups.groupPreAuthTokenSM3] != null && groupRow[Groups.passwordEndTime] != null && groupRow[Groups.passwordEndTime]!! > LocalDateTime.now()
+                                groupRow[Groups.groupPreAuthTokenSM3] != null && groupRow[Groups.preAuthTokenEndTime] != null && groupRow[Groups.preAuthTokenEndTime]!! > LocalDateTime.now()
                             GroupInfoResponse(
-                                groupId,
-                                groupName,
-                                createAt.toKotlinLocalDateTime(),
-                                isPreAuthTokenEnable,
-                                memberList = memberList
+                                groupId, groupName, createAt.toKotlinLocalDateTime(), isPreAuthTokenEnable, memberList
                             )
                         }
-                        call.respond(Json.encodeToString<GroupInfoResponse>(groupInfo))
+                        call.respond(groupInfo)
                     }
                 }
             }
@@ -197,12 +193,13 @@ private data class GroupJoinRequest(
     val groupPreAuthToken: String? = null
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 private data class GroupInfoResponse(
     val groupId: String,
     val groupName: String? = null,
     val createAt: kotlinx.datetime.LocalDateTime,
-    val isPreAuthTokenEnable: Boolean = false,
+    @EncodeDefault val isPreAuthTokenEnable: Boolean = false,
     val memberList: List<GroupInfoMember>? = null
 )
 

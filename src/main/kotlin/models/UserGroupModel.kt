@@ -11,7 +11,7 @@ object Users : Table("users") {
     val userId = text("user_id").uniqueIndex()
     val weixinOpenId = text("weixin_open_id").uniqueIndex()
     val weixinUnionId = text("weixin_union_id").uniqueIndex().nullable()
-    val userName = text("user_name").nullable()
+    val userName = text("user_name")
     val isSoterEnabled = bool("is_soter_enabled").default(false)
     override val primaryKey = PrimaryKey(userId)
 }
@@ -30,7 +30,7 @@ object Groups : Table("groups") {
     val superAdmin =
         reference("super_admin_id", Users.userId, onDelete = ReferenceOption.NO_ACTION) // 超级管理员（只唯一，不可为空，可转让）
     val groupPreAuthTokenSM3 = text("group_pre_auth_token_sm3").nullable()
-    val passwordEndTime = datetime("password_end_time").nullable()
+    val preAuthTokenEndTime = datetime("pre_auth_token_end_time").nullable()
     val createdAt = datetime("created_at")
     override val primaryKey = PrimaryKey(groupId)
 }

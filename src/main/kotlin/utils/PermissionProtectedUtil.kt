@@ -61,8 +61,8 @@ suspend fun Route.protectedRoute(
     action: suspend () -> Unit
 ) {
     if (permissions.isEmpty()) throw IllegalArgumentException("权限不能为空")
-    val appId = environment.config.property("appId").getString()
-    val appSecret = environment.config.property("appSecret").getString()
+    val appId = environment.config.property("wx.appId").getString()
+    val appSecret = environment.config.property("wx.appSecret").getString()
     var errorText: String? = null
     fun setError(text: String): Boolean {
         errorText = text
@@ -70,8 +70,8 @@ suspend fun Route.protectedRoute(
     }
 
     val canAction: Boolean = newSuspendedTransaction {
-        val userId = getUserIdByWeixinOpenIdOrNullFromDB(weixinOpenId)
-        if (userId == null) return@newSuspendedTransaction setError("用户未注册")
+        val userId =
+            getUserIdByWeixinOpenIdOrNullFromDB(weixinOpenId) ?: return@newSuspendedTransaction setError("用户未注册")
 
         if (soter) {
             // 检查用户是否设置了 SOTER 生物认证

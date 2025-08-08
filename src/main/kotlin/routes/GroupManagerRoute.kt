@@ -3,6 +3,7 @@ package org.lumina.routes
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -30,13 +31,47 @@ import java.time.LocalDateTime
  * 功能：
  * - 移除成员
  * - 为团体设置临时密码与有效期（直接覆盖之前的设定）
- * - 将成员设置为管理员
+ * - 将成员设置为管理员（非超管）
  * - 将管理员（非超管）设置为普通成员
  */
 fun Route.groupManagerRoute(appId: String, appSecret: String) {
     authenticate {
         route("/groupManager/{groupId}") {
-            post("/remove") {
+            post("/rename") {
+                val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
+                    HttpStatusCode.BadRequest, INVALID_GROUP_ID
+                )
+                val weixinOpenId =
+                    call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                        HttpStatusCode.Unauthorized, INVALID_JWT
+                    )
+                val request = call.receive<GroupRenameRequest>().normalized() as? GroupRenameRequest
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
+                val isContentSafety = temporaryWeixinContentSecurityCheck(
+                    appId, appSecret, WeixinContentSecurityRequest(
+                        content = request.newGroupName,
+                        nickname = request.newGroupName,
+                        scene = WeixinContentSecurityScene.SCENE_PROFILE,
+                        openid = weixinOpenId,
+                    )
+                )
+                if (!isContentSafety) return@post call.respond(
+                    HttpStatusCode.BadRequest, UNSAFE_CONTENT
+                )
+                protectedRoute(
+                    weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
+                ) {
+                    transaction {
+                        val group = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
+                        if (group == null) throw NotFoundException("群组不存在")
+                        Groups.update({ Groups.groupId eq groupId }) {
+                            it[Groups.groupName] = request.newGroupName
+                        }
+                    }
+                    call.respond("群组名称修改成功")
+                }
+            }
+            post("/removeMember") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
@@ -75,7 +110,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     )
                 }
             }
-            post("/setPassword") {
+            post("/setPreAuthToken") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
                 )
@@ -83,7 +118,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
                         HttpStatusCode.Unauthorized, INVALID_JWT
                     )
-                val request = call.receive<SetGroupPasswordRequest>().normalized() as? SetGroupPasswordRequest
+                val request = call.receive<SetGroupPreAuthTokenRequest>().normalized() as? SetGroupPreAuthTokenRequest
                     ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
                 val preAuthToken = request.preAuthToken
                 val isContentSafety = temporaryWeixinContentSecurityCheck(
@@ -104,10 +139,10 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     transaction {
                         Groups.update({ Groups.groupId eq groupId }) {
                             it[groupPreAuthTokenSM3] = preAuthToken.sm3()
-                            it[passwordEndTime] = endDateTime
+                            it[preAuthTokenEndTime] = endDateTime
                         }
                     }
-                    call.respond("临时密码设置成功")
+                    call.respond("团体预授权凭证设置成功")
                 }
             }
             post("/setAdmin") {
@@ -202,6 +237,17 @@ data class GroupManagerUser(
     val userId: String, val userName: String? = null
 )
 
+/**
+ * 团体重命名
+ * @property newGroupName 新的团体名称
+ * @property soterInfo SOTER 生物验证信息
+ */
+@Serializable
+private data class GroupRenameRequest(
+    val newGroupName: String,
+    val soterInfo: SoterResultFromUser? = null
+)
+
 @Serializable
 private data class GroupManagerRequest(
     val groupManageUserList: List<GroupManagerUser>, val soterInfo: SoterResultFromUser? = null
@@ -214,7 +260,7 @@ private data class GroupManagerRequest(
  * @property soterInfo SOTER 生物验证信息
  */
 @Serializable
-private data class SetGroupPasswordRequest(
+private data class SetGroupPreAuthTokenRequest(
     val preAuthToken: String, val validity: Long, val soterInfo: SoterResultFromUser? = null
 )
 

@@ -1,7 +1,5 @@
 package org.lumina.utils
 
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -21,11 +19,10 @@ data class WeixinLoginResponse(
     val errmsg: String? = null
 )
 
-private val client = HttpClient(CIO)
 private val json = Json { ignoreUnknownKeys = true }
 
 suspend fun code2Session(appId: String, appSecret: String, code: String): WeixinLoginResponse {
-    val response = client.get {
+    val response = commonClient.get {
         url {
             protocol = URLProtocol.HTTPS
             host = WEIXIN_MP_SERVER_OPEN_API_HOST

@@ -1,10 +1,10 @@
 package org.lumina.utils
 
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
@@ -40,11 +40,12 @@ object WeixinContentSecurityScene {
  * @property signature 个性签名，该参数仅在资料类场景有效(scene=1)，需使用UTF-8编码
  * @see [微信开放文档](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/sec-center/sec-check/msgSecCheck.html)
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class WeixinContentSecurityRequest(
     val content: String,
-    val version: Int = 2,
-    val scene: Int = SCENE_FORUM,
+    @EncodeDefault val version: Int = 2,
+    @EncodeDefault val scene: Int = SCENE_FORUM,
     val openid: String,
     val title: String? = null,
     val nickname: String? = null,
@@ -105,7 +106,6 @@ data class WeixinContentSecurityResponseResult(
     val suggest: String? = null, val label: Int? = null
 )
 
-private val client = HttpClient(CIO)
 private val json = Json { ignoreUnknownKeys = true }
 
 /**
@@ -121,13 +121,14 @@ suspend fun weixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest
 ): WeixinContentSecurityResponse {
     val accessToken = getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
-    val response = client.post {
+    val response = commonClient.post {
         url {
             protocol = URLProtocol.HTTPS
             host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("wxa", "msg_sec_check")
             parameters.append("access_token", accessToken)
         }
+        contentType(ContentType.Application.Json)
         setBody(request)
     }
     return json.decodeFromString<WeixinContentSecurityResponse>(response.bodyAsText())
