@@ -4,7 +4,7 @@ val kotlin_version = "2.2.0"
 val logback_version = "1.5.18"
 val postgres_version = "42.7.7"
 val kona_sm_version = "1.0.18"
-val tika_version = "3.2.1"
+val tika_version = "3.2.2"
 
 plugins {
     kotlin("jvm") version "2.2.0"
