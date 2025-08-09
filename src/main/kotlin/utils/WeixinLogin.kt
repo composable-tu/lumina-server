@@ -10,15 +10,6 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 import org.lumina.models.Users
 
-@Serializable
-data class WeixinLoginResponse(
-    val openid: String? = null,
-    val session_key: String? = null,
-    val unionid: String? = null,
-    val errcode: Int? = null,
-    val errmsg: String? = null
-)
-
 private val json = Json { ignoreUnknownKeys = true }
 
 suspend fun code2Session(appId: String, appSecret: String, code: String): WeixinLoginResponse {
@@ -37,6 +28,15 @@ suspend fun code2Session(appId: String, appSecret: String, code: String): Weixin
     }
     return json.decodeFromString<WeixinLoginResponse>(response.bodyAsText())
 }
+
+@Serializable
+data class WeixinLoginResponse(
+    val openid: String? = null,
+    val session_key: String? = null,
+    val unionid: String? = null,
+    val errcode: Int? = null,
+    val errmsg: String? = null
+)
 
 /**
  * 将微信小程序用户登录临时凭证转为微信小程序 Open ID（如果转换失败则返回 Null）

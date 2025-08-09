@@ -58,8 +58,35 @@ fun ByteArray.toHashString(): String {
 /**
  * 计算字符串的 SM3 杂凑值并返回杂凑值的 Hex 字符串
  */
-fun String.sm3():  String {
+fun String.sm3(): String {
     val messageDigest = MessageDigest.getInstance("SM3")
     return messageDigest.digest(this.toByteArray()).toHashString()
+}
+
+fun String.base64KeyToHex(): String {
+    // 移除 Base64 填充字符
+    val base64Clean = this.replace(Regex("=+\$"), "")
+    // Base64 查找表
+    val lookupTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    // 转换为二进制字符串
+    val binaryStr = StringBuilder().apply {
+        base64Clean.forEach { char ->
+            val pos = lookupTable.indexOf(char)
+            if (pos >= 0) {
+                append(pos.toString(2).padStart(6, '0'))
+            }
+        }
+    }.toString()
+
+    // 转换为十六进制
+    return StringBuilder().apply {
+        var i = 0
+        while (i + 8 <= binaryStr.length) {
+            val byteStr = binaryStr.substring(i, i + 8)
+            append(Integer.parseInt(byteStr, 2).toString(16).padStart(2, '0'))
+            i += 8
+        }
+    }.toString().lowercase()
 }
 

@@ -23,6 +23,10 @@ import org.lumina.models.UserGroups
 import org.lumina.models.UserRole
 import org.lumina.utils.*
 import org.lumina.utils.RuntimePermission.SUPER_ADMIN
+import org.lumina.utils.security.SoterResultFromUser
+import org.lumina.utils.security.WeixinContentSecurityRequest
+import org.lumina.utils.security.WeixinContentSecurityScene
+import org.lumina.utils.security.temporaryWeixinContentSecurityCheck
 import java.time.LocalDateTime
 
 /**
@@ -244,8 +248,7 @@ data class GroupManagerUser(
  */
 @Serializable
 private data class GroupRenameRequest(
-    val newGroupName: String,
-    val soterInfo: SoterResultFromUser? = null
+    val newGroupName: String, val soterInfo: SoterResultFromUser? = null
 )
 
 @Serializable

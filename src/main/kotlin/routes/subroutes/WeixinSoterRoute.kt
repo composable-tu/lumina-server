@@ -16,9 +16,9 @@ import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_SOTER
 import org.lumina.fields.ReturnInvalidReasonFields.USER_NOT_FOUND
 import org.lumina.models.Users
-import org.lumina.utils.SoterResultFromUser
-import org.lumina.utils.WeixinSoterCheckRequest
-import org.lumina.utils.weixinSoterCheck
+import org.lumina.utils.security.SoterResultFromUser
+import org.lumina.utils.security.WeixinSoterCheckRequest
+import org.lumina.utils.security.weixinSoterCheck
 import javax.security.sasl.AuthenticationException
 
 /**

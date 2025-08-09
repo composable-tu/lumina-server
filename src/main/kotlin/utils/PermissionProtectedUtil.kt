@@ -8,6 +8,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTrans
 import org.lumina.models.*
 import org.lumina.utils.CheckType.*
 import org.lumina.utils.RuntimePermission.*
+import org.lumina.utils.security.SoterResultFromUser
+import org.lumina.utils.security.WeixinSoterCheckRequest
+import org.lumina.utils.security.weixinSoterCheck
 
 /**
  * 运行时角色权限
