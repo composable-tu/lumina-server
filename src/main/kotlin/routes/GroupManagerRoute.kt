@@ -3,7 +3,7 @@ package org.lumina.routes
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
-import io.ktor.server.plugins.NotFoundException
+import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -33,6 +33,7 @@ import java.time.LocalDateTime
  * 团体管理路由
  *
  * 功能：
+ * - 更改团体名
  * - 移除成员
  * - 为团体设置临时密码与有效期（直接覆盖之前的设定）
  * - 将成员设置为管理员（非超管）
@@ -41,6 +42,8 @@ import java.time.LocalDateTime
 fun Route.groupManagerRoute(appId: String, appSecret: String) {
     authenticate {
         route("/groupManager/{groupId}") {
+
+            // 更改团体名
             post("/rename") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -49,8 +52,10 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
                         HttpStatusCode.Unauthorized, INVALID_JWT
                     )
-                val request = call.receive<GroupRenameRequest>().normalized() as? GroupRenameRequest
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
+                val request =
+                    call.receive<GroupRenameRequest>().normalized() as? GroupRenameRequest ?: return@post call.respond(
+                        HttpStatusCode.BadRequest, "请求格式错误"
+                    )
                 val isContentSafety = temporaryWeixinContentSecurityCheck(
                     appId, appSecret, WeixinContentSecurityRequest(
                         content = request.newGroupName,
@@ -63,7 +68,13 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     HttpStatusCode.BadRequest, UNSAFE_CONTENT
                 )
                 protectedRoute(
-                    weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
+                    weixinOpenId,
+                    groupId,
+                    SUPERADMIN_ADMIN_SET,
+                    CheckType.GROUP_ID,
+                    "更改团体名",
+                    true,
+                    request.soterInfo
                 ) {
                     transaction {
                         val group = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
@@ -75,6 +86,8 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     call.respond("群组名称修改成功")
                 }
             }
+
+            // 移除成员
             post("/removeMember") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -86,7 +99,7 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                 val request = call.receive<GroupManagerRequest>().normalized() as? GroupManagerRequest
                     ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
                 protectedRoute(
-                    weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
+                    weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, "移除成员", true, request.soterInfo
                 ) {
                     val groupManagerResponse: GroupManagerResponse = transaction {
                         val groupRemoveUserList = request.groupManageUserList
@@ -114,6 +127,8 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     )
                 }
             }
+
+            // 为团体设置预授权凭证与有效期
             post("/setPreAuthToken") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -138,7 +153,13 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                 if (request.validity <= 0) call.respond(HttpStatusCode.BadRequest, "请输入正确的有效期")
                 val endDateTime = LocalDateTime.now().plusMinutes(request.validity)
                 protectedRoute(
-                    weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, true, request.soterInfo
+                    weixinOpenId,
+                    groupId,
+                    SUPERADMIN_ADMIN_SET,
+                    CheckType.GROUP_ID,
+                    "为团体设置预授权凭证与有效期",
+                    true,
+                    request.soterInfo
                 ) {
                     transaction {
                         Groups.update({ Groups.groupId eq groupId }) {
@@ -149,6 +170,8 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     call.respond("团体预授权凭证设置成功")
                 }
             }
+
+            // 将成员设置为管理员
             post("/setAdmin") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -160,7 +183,13 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                 val request = call.receive<GroupManagerRequest>().normalized() as? GroupManagerRequest
                     ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
                 protectedRoute(
-                    weixinOpenId, groupId, setOf(SUPER_ADMIN), CheckType.GROUP_ID, true, request.soterInfo
+                    weixinOpenId,
+                    groupId,
+                    setOf(SUPER_ADMIN),
+                    CheckType.GROUP_ID,
+                    "将成员设置为管理员",
+                    true,
+                    request.soterInfo
                 ) {
                     val groupManagerResponse: GroupManagerResponse = transaction {
                         val groupSetAdminUserList = request.groupManageUserList
@@ -190,6 +219,8 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                     )
                 }
             }
+
+            // 将管理员（非超管）设置为普通成员
             post("/resetToMember") {
                 val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -201,7 +232,13 @@ fun Route.groupManagerRoute(appId: String, appSecret: String) {
                 val request = call.receive<GroupManagerRequest>().normalized() as? GroupManagerRequest
                     ?: return@post call.respond(HttpStatusCode.BadRequest, "请求格式错误")
                 protectedRoute(
-                    weixinOpenId, groupId, setOf(SUPER_ADMIN), CheckType.GROUP_ID, true, request.soterInfo
+                    weixinOpenId,
+                    groupId,
+                    setOf(SUPER_ADMIN),
+                    CheckType.GROUP_ID,
+                    "将管理员（非超管）设置为普通成员",
+                    true,
+                    request.soterInfo
                 ) {
                     val groupManagerResponse: GroupManagerResponse = transaction {
                         val groupResetToMemberUserList = request.groupManageUserList

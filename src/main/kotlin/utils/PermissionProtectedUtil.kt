@@ -11,6 +11,8 @@ import org.lumina.utils.RuntimePermission.*
 import org.lumina.utils.security.SoterResultFromUser
 import org.lumina.utils.security.WeixinSoterCheckRequest
 import org.lumina.utils.security.weixinSoterCheck
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * 运行时角色权限
@@ -52,6 +54,8 @@ enum class CheckType { TASK_ID, GROUP_ID, APPROVAL_ID }
 
 /**
  * 路由保护，用于检查用户是否有权执行某个操作
+ * @param checkType ID 检查类型
+ * @param challenge 为此次鉴权准备的识别信息字符串，供调用者识别本次请求。例如：如果场景为请求用户对某操作进行授权确认，则可以将该操作名填入此参数。
  * @param soter 启用后，无论角色权限如何，如果该用户设置了启用 SOTER 生物认证，则需要验证 SOTER 才能执行该操作
  */
 suspend fun Route.protectedRoute(
@@ -59,6 +63,7 @@ suspend fun Route.protectedRoute(
     groupIdOrTaskIdOrApproveId: String,
     permissions: Set<RuntimePermission>,
     checkType: CheckType,
+    challenge: String,
     soter: Boolean,
     soterResultFromUser: SoterResultFromUser? = null,
     action: suspend () -> Unit
@@ -116,7 +121,11 @@ suspend fun Route.protectedRoute(
             }
         }
     }
-    if (canAction) action() else throw IllegalArgumentException(errorText)
+    if (canAction) {
+        val time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        println("$time 用户 $weixinOpenId 向 $checkType $groupIdOrTaskIdOrApproveId 执行 $challenge")
+        action()
+    } else throw IllegalArgumentException(errorText)
 }
 
 /**

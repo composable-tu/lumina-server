@@ -41,6 +41,8 @@ import org.lumina.utils.security.SoterResultFromUser
 fun Route.approvalRoute(appId: String, appSecret: String) {
     authenticate {
         route("/approvals") {
+
+            // 根据审批 ID 获取审批信息
             get("/{approvalId}") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@get call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
@@ -57,7 +59,12 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     )
                 }
                 protectedRoute(
-                    weixinOpenId, approvalIdString, SUPERADMIN_ADMIN_SELF_SET, CheckType.APPROVAL_ID, false
+                    weixinOpenId,
+                    approvalIdString,
+                    SUPERADMIN_ADMIN_SELF_SET,
+                    CheckType.APPROVAL_ID,
+                    "根据审批 ID 获取审批信息",
+                    false
                 ) {
                     val approvalInfo = transaction {
                         val approvalRow =
@@ -82,6 +89,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                 }
             }
 
+            // 获取自己的审批信息
             get("/self") {
                 val weixinOpenId =
                     call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
@@ -107,6 +115,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                 )
             }
 
+            // 管理员获取自己所有管理的团体的审批信息
             route("/admin") {
                 get {
                     val weixinOpenId =
@@ -133,6 +142,8 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                         Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
                     )
                 }
+
+                // 管理员根据团体 ID 获取该团体的审批信息
                 get("/{groupId}") {
                     val weixinOpenId =
                         call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
@@ -142,7 +153,12 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                         HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
                     )
                     protectedRoute(
-                        weixinOpenId, groupId, SUPERADMIN_ADMIN_SET, CheckType.GROUP_ID, false
+                        weixinOpenId,
+                        groupId,
+                        SUPERADMIN_ADMIN_SET,
+                        CheckType.GROUP_ID,
+                        "管理员根据团体 ID 获取该团体的审批信息",
+                        false
                     ) {
                         val approvalInfoList = transaction {
                             val approvalInfoList = mutableListOf<ApprovalInfo>()
@@ -160,6 +176,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                 }
             }
 
+            // 审批创建者撤回自己的审批
             post("/{approvalId}/withdraw") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
@@ -184,6 +201,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     approvalIdString,
                     setOf(RuntimePermission.SELF),
                     CheckType.APPROVAL_ID,
+                    "审批创建者撤回自己的审批",
                     soter = true,
                     soterResultFromUser = actionRequest.soterInfo
                 ) {
@@ -201,6 +219,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                 }
             }
 
+            // 管理员对审批进行通过或拒绝操作
             post("/{approvalId}") {
                 val approvalIdString = call.parameters["approvalId"]?.trim() ?: return@post call.respond(
                     HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
@@ -221,6 +240,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     approvalIdString,
                     SUPERADMIN_ADMIN_SET,
                     CheckType.APPROVAL_ID,
+                    "管理员对审批进行通过或拒绝操作",
                     true,
                     actionRequest.soterInfo
                 ) {
@@ -238,8 +258,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                             ApprovalTargetType.GROUP_JOIN -> {
                                 val joinGroupApprovalRow =
                                     JoinGroupApprovals.selectAll().where { JoinGroupApprovals.approvalId eq approvalId }
-                                        .firstOrNull()
-                                        ?: throw IllegalStateException("服务器错误")
+                                        .firstOrNull() ?: throw IllegalStateException("服务器错误")
                                 when (actionRequest.action) {
                                     APPROVE -> {
                                         val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]

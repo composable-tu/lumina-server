@@ -8,6 +8,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
+import org.lumina.routes.data.EncryptContentRequest
 import org.lumina.utils.normalized
 import org.lumina.utils.security.WeixinUserCryptoKeyRequest
 import org.lumina.utils.security.weixinDecryptContent
@@ -43,10 +44,3 @@ fun Routing.devRoute(appId: String, appSecret: String) {
         }
     }
 }
-
-@Serializable
-data class EncryptContentRequest(
-    val encryptContent: String,
-    val encryptVersion: Int,
-    val weixinLoginCode: String,
-)

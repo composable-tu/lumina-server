@@ -37,6 +37,7 @@ import java.time.LocalDateTime
 fun Route.groupRoute(appId: String, appSecret: String) {
     authenticate {
         route("/group") {
+            // 获取自己加入的团体
             get {
                 val weixinOpenId =
                     call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
@@ -57,6 +58,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
             }
 
             route("/{groupId}") {
+                // 申请加入团体
                 post("/join") {
                     val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
                         HttpStatusCode.BadRequest, INVALID_GROUP_ID
@@ -146,6 +148,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     call.respond(textInfo)
                 }
 
+                // 团体管理员、超管、成员获取团体信息
                 get { // getGroupInfo
                     val weixinOpenId =
                         call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
@@ -154,7 +157,14 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     val groupId = call.parameters["groupId"]?.trim() ?: return@get call.respond(
                         HttpStatusCode.BadRequest, INVALID_GROUP_ID
                     )
-                    protectedRoute(weixinOpenId, groupId, SUPERADMIN_ADMIN_MEMBER_SET, CheckType.GROUP_ID, false) {
+                    protectedRoute(
+                        weixinOpenId,
+                        groupId,
+                        SUPERADMIN_ADMIN_MEMBER_SET,
+                        CheckType.GROUP_ID,
+                        "团体管理员、超管、成员获取团体信息",
+                        false
+                    ) {
                         val groupInfo: GroupInfoResponse = transaction {
                             val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
                             if (groupRow == null) throw IllegalArgumentException(INVALID_GROUP_ID)
