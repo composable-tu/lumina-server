@@ -43,7 +43,7 @@ object JoinGroupApprovals : Table("join_group_approvals") {
     val requesterUserId = text("requester_user_id")
     val requesterUserName = text("requester_user_name")
     val requesterWeixinOpenId = text("requester_weixin_open_id")
-    val entryPasswordSM3 = text("entry_password_sm3").nullable()
+    val preAuthTokenSM3 = text("pre_auth_token_sm3").nullable()
     override val primaryKey = PrimaryKey(approvalId)
 }
 

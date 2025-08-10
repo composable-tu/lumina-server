@@ -7,7 +7,11 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.lumina.generateJWT
+import org.lumina.models.Users
 import org.lumina.utils.code2WeixinOpenIdOrNull
 import org.lumina.utils.normalized
 
@@ -22,18 +26,26 @@ fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
     route("/weixin") {
         post("/login") {
             val request = call.receive<WeixinLoginRequest>().normalized() as WeixinLoginRequest
-            val weixinOpenId = code2WeixinOpenIdOrNull(appId, appSecret,request.code)
-            if (weixinOpenId == null) throw MissingTokenException()
-            val jwt = generateJWT(weixinOpenId)
+            val weixinUserInfo = code2WeixinOpenIdOrNull(appId, appSecret, request.code)
+            val weixinOpenId = weixinUserInfo.openid ?: throw MissingTokenException()
+            val weixinUnionId = weixinUserInfo.unionid
+            val jwt = generateJWT(weixinOpenId, weixinUnionId)
+            if (weixinUnionId != null) transaction {
+                val userRow = Users.selectAll().where { Users.weixinOpenId eq weixinOpenId }.firstOrNull()
+                if (userRow != null) Users.update({ Users.weixinOpenId eq weixinOpenId }) {
+                    it[this.weixinUnionId] = weixinUnionId
+                }
+            }
             call.respond(WeixinLoginResponse(jwt))
         }
         authenticate {
-            get("/validate"){
+            get("/validate") {
                 call.respond(HttpStatusCode.OK)
             }
         }
     }
 }
+
 @Serializable
 private data class WeixinLoginRequest(val code: String)
 

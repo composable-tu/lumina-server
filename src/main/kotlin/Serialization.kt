@@ -33,7 +33,6 @@ fun Application.configureSerialization() {
     }
     install(StatusPages) {
         exception<Throwable> { call, cause ->
-            println(cause)
             val status = when (cause) {
                 is ResponseException -> cause.response.status
                 else -> HttpStatusCode.InternalServerError
@@ -50,6 +49,8 @@ fun Application.configureSerialization() {
                     message = causeMessage ?: "Server Error", statusCode = status.value
                 )
             )
+            cause.printStackTrace()
+            println(cause)
         }
     }
 }

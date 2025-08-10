@@ -47,7 +47,7 @@ fun Application.configureSecurity() {
     }
 }
 
-fun Route.generateJWT(weixinOpenId: String): String {
+fun Route.generateJWT(weixinOpenId: String, weixinUnionId: String? = null): String {
     // 加载密钥对
     val signPublicKeyHex = environment.config.property("jwt.sm2.signPublicKey").getString()
     val signPrivateKeyHex = environment.config.property("jwt.sm2.signPrivateKey").getString()
@@ -59,8 +59,9 @@ fun Route.generateJWT(weixinOpenId: String): String {
     val jwtAudience = environment.config.property("jwt.audience").getString()
     val jwtExpiresIn = environment.config.property("jwt.expiresIn").getString().toLongOrNull() ?: 604800
 
-    return JWT.create().withClaim("weixinOpenId", weixinOpenId).withIssuer(jwtIssuer).withAudience(jwtAudience)
-        .withSubject(jwtDomain).withIssuedAt(Date())
+    return JWT.create().withClaim("weixinOpenId", weixinOpenId).apply {
+        if (weixinUnionId != null) withClaim("weixinUnionId", weixinUnionId)
+    }.withIssuer(jwtIssuer).withAudience(jwtAudience).withSubject(jwtDomain).withIssuedAt(Date())
         .withExpiresAt(Date(System.currentTimeMillis() + jwtExpiresIn * 1000))
         .sign(SM3WithSM2Algorithm(keyPair.private, keyPair.public))
 }

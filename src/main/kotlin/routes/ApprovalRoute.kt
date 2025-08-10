@@ -40,7 +40,7 @@ import org.lumina.utils.security.SoterResultFromUser
  */
 fun Route.approvalRoute(appId: String, appSecret: String) {
     authenticate {
-        route("/approvals") {
+        route("/approval") {
 
             // 根据审批 ID 获取审批信息
             get("/{approvalId}") {
@@ -103,16 +103,14 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                         .where { JoinGroupApprovals.requesterWeixinOpenId eq weixinOpenId }
 
                     joinGroupApprovalInfoRows.forEach { joinGroupApprovalInfoRow ->
-                        approvalInfoList.add(buildApprovalInfo(joinGroupApprovalInfoRow))
+                        approvalInfoList.add(buildApprovalInfo(joinGroupApprovalInfoRow, ApprovalTargetType.GROUP_JOIN))
                     }
 
                     // TODO: taskRequest and taskExpandGroupRequest
 
                     approvalInfoList.sortedByDescending({ it.createdAt })
                 }
-                call.respond(
-                    Json.encodeToString<List<ApprovalInfo>>(approvalInfoList)
-                )
+                call.respond(approvalInfoList)
             }
 
             // 管理员获取自己所有管理的团体的审批信息
@@ -133,7 +131,11 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                             val joinGroupApprovalInfoRows = JoinGroupApprovals.selectAll()
                                 .where { JoinGroupApprovals.targetGroupId eq managingGroupId }
                             joinGroupApprovalInfoRows.forEach { joinGroupApprovalInfoRow ->
-                                approvalInfoList.add(buildApprovalInfo(joinGroupApprovalInfoRow))
+                                approvalInfoList.add(
+                                    buildApprovalInfo(
+                                        joinGroupApprovalInfoRow, ApprovalTargetType.GROUP_JOIN
+                                    )
+                                )
                             }
                         }
                         approvalInfoList.sortedByDescending({ it.createdAt })
@@ -165,7 +167,11 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                             val joinGroupApprovalInfoRows =
                                 JoinGroupApprovals.selectAll().where { JoinGroupApprovals.targetGroupId eq groupId }
                             joinGroupApprovalInfoRows.forEach { joinGroupApprovalInfoRow ->
-                                approvalInfoList.add(buildApprovalInfo(joinGroupApprovalInfoRow))
+                                approvalInfoList.add(
+                                    buildApprovalInfo(
+                                        joinGroupApprovalInfoRow, ApprovalTargetType.GROUP_JOIN
+                                    )
+                                )
                             }
                             approvalInfoList.sortedByDescending({ it.createdAt })
                         }
@@ -376,20 +382,34 @@ data class JoinGroupApprovalInfo(
  * @param approvalRow 来自 JetBrains Exposed 查库结果的 ResultRow
  * @return ApprovalInfo 对象
  */
-fun Transaction.buildApprovalInfo(approvalRow: ResultRow): ApprovalInfo {
-    val reviewer = approvalRow[Approvals.reviewer]
+fun Transaction.buildApprovalInfo(approvalRow: ResultRow, type: ApprovalTargetType): ApprovalInfo {
+    val commonApprovalRow = when (type) {
+        ApprovalTargetType.TASK_CREATION -> {
+            TODO()
+        }
+
+        ApprovalTargetType.GROUP_JOIN -> {
+            Approvals.selectAll().where { Approvals.approvalId eq approvalRow[JoinGroupApprovals.approvalId] }
+                .firstOrNull() ?: throw IllegalStateException("服务器错误")
+        }
+
+        ApprovalTargetType.TASK_EXPAND_GROUP -> {
+            TODO()
+        }
+    }
+    val reviewer = commonApprovalRow[Approvals.reviewer]
     val reviewerName =
         if (reviewer == null) null else Users.selectAll().where { Users.userId eq reviewer }.firstOrNull()
             ?.get(Users.userName)
     return ApprovalInfo(
-        approvalId = approvalRow[Approvals.approvalId],
-        createdAt = approvalRow[Approvals.createdAt].toKotlinLocalDateTime(),
-        approvalType = approvalRow[Approvals.approvalType].toString(),
-        status = approvalRow[Approvals.status].toString(),
-        comment = approvalRow[Approvals.comment],
+        approvalId = commonApprovalRow[Approvals.approvalId],
+        createdAt = commonApprovalRow[Approvals.createdAt].toKotlinLocalDateTime(),
+        approvalType = commonApprovalRow[Approvals.approvalType].toString(),
+        status = commonApprovalRow[Approvals.status].toString(),
+        comment = commonApprovalRow[Approvals.comment],
         reviewer = reviewer,
         reviewerName = reviewerName,
-        reviewedAt = approvalRow[Approvals.reviewedAt]?.toKotlinLocalDateTime()
+        reviewedAt = commonApprovalRow[Approvals.reviewedAt]?.toKotlinLocalDateTime()
     )
 }
 

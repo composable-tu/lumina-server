@@ -67,12 +67,13 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
                             HttpStatusCode.Unauthorized, INVALID_JWT
                         )
+                    val weixinUnionId = call.principal<JWTPrincipal>()?.get("weixinUnionId")?.trim()
                     val request = call.receive<GroupJoinRequest>().normalized() as GroupJoinRequest
                     val requesterUserId = request.requesterUserId
                     val requesterUserName = request.requesterUserName
                     val requesterComment = request.requesterComment
                     val groupPreAuthToken = request.groupPreAuthToken
-                    transaction {
+                    val userIdFromDB = transaction {
                         val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
                         if (userIdFromDB != null) {
                             if (userIdFromDB != requesterUserId) throw BadRequestException("您的微信账号似乎曾绑定过用户 ID，但现在您填入的用户 ID 与数据库中您微信绑定的用户 ID 不一致。如需更改用户 ID，请联系客服进行处理。")
@@ -92,6 +93,8 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             if (approvalRow == null) throw Exception("服务端出现错误")
                             if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) throw BadRequestException("您此前已提交过申请，请等待审批")
                         }
+
+                        userIdFromDB
                     }
 
                     val weixinContentSecurityCheck = temporaryWeixinContentSecurityCheck(
@@ -106,24 +109,31 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     if (!weixinContentSecurityCheck) throw BadRequestException(UNSAFE_CONTENT)
                     val isJoin = transaction {
                         // 这里的判断逻辑是，如果进团体临时令牌没写就认为是应该经过审批加入请求，进入审批数据库
-                        // 如果进团体临时令牌不符合数据库设置则直接打回，请求不进入数据库
-                        // 如果临时令牌正确则直接进团体
-                        val entryPasswordSM3 = if (groupPreAuthToken.isNullOrEmpty()) null else groupPreAuthToken.sm3()
-                        val groupEntryPasswordIsOk = if (groupPreAuthToken.isNullOrEmpty()) false else {
+                        // 如果进团体预授权凭证不符合数据库设置则直接打回，请求不进入数据库
+                        // 如果预授权凭证正确则直接进团体
+                        val preAuthTokenSM3 = if (groupPreAuthToken.isNullOrEmpty()) null else groupPreAuthToken.sm3()
+                        val groupPreAuthTokenIsOk = if (groupPreAuthToken.isNullOrEmpty()) false else {
                             val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
                             if (groupRow == null) throw Exception("服务端出现错误")
                             val groupPreAuthTokenSM3 = groupRow[Groups.groupPreAuthTokenSM3]
-                            if (entryPasswordSM3 != groupPreAuthTokenSM3) {
-                                throw BadRequestException("临时令牌错误")
+                            if (preAuthTokenSM3 != groupPreAuthTokenSM3) {
+                                throw BadRequestException("预授权凭证错误")
                             } else {
                                 val groupPreAuthTokenEndTime = groupRow[Groups.preAuthTokenEndTime]
                                 groupPreAuthTokenEndTime != null && groupPreAuthTokenEndTime >= LocalDateTime.now()
                             }
                         }
+
+                        if (userIdFromDB == null) Users.insert {
+                            it[this.userId] = requesterUserId
+                            it[this.weixinOpenId] = weixinOpenId
+                            if (weixinUnionId != null) it[this.weixinUnionId] = weixinUnionId
+                            it[this.userName] = requesterUserName
+                        }
                         val approvalId = Approvals.insert {
                             it[approvalType] = ApprovalTargetType.GROUP_JOIN
                             it[status] =
-                                if (groupEntryPasswordIsOk) ApprovalStatus.AUTO_PASSED else ApprovalStatus.PENDING
+                                if (groupPreAuthTokenIsOk) ApprovalStatus.AUTO_PASSED else ApprovalStatus.PENDING
                             it[createdAt] = LocalDateTime.now()
                             it[comment] = requesterComment
                         }[Approvals.approvalId]
@@ -133,16 +143,16 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             it[this.requesterUserId] = requesterUserId
                             it[this.requesterUserName] = requesterUserName
                             it[this.requesterWeixinOpenId] = weixinOpenId
-                            if (!groupPreAuthToken.isNullOrEmpty()) it[this.entryPasswordSM3] = entryPasswordSM3
+                            if (!groupPreAuthToken.isNullOrEmpty()) it[this.preAuthTokenSM3] = preAuthTokenSM3
                         }
-                        if (groupEntryPasswordIsOk) {
+                        if (groupPreAuthTokenIsOk) {
                             UserGroups.insert {
                                 it[this.userId] = requesterUserId
                                 it[this.groupId] = groupId
                                 it[this.permission] = UserRole.MEMBER
                             }
                         }
-                        groupEntryPasswordIsOk
+                        groupPreAuthTokenIsOk
                     }
                     val textInfo = if (isJoin) "已成功进入团体" else "申请提交成功"
                     call.respond(textInfo)

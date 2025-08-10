@@ -39,16 +39,10 @@ data class WeixinLoginResponse(
 )
 
 /**
- * 将微信小程序用户登录临时凭证转为微信小程序 Open ID（如果转换失败则返回 Null）
+ * 将微信小程序用户登录临时凭证转为微信小程序用户登录信息，包括 Open ID（如果转换失败则返回 Null）
  */
 suspend fun code2WeixinOpenIdOrNull(appId: String, appSecret: String, code: String) =
-    code2Session(appId, appSecret, code).openid
-
-/**
- * 将微信小程序用户登录临时凭证转为微信小程序 Union ID（如果转换失败则返回 Null）
- */
-suspend fun code2WeixinUnionIdOrNull(appId: String, appSecret: String, code: String) =
-    code2Session(appId, appSecret, code).unionid
+    code2Session(appId, appSecret, code)
 
 /**
  * 从数据库中获取微信小程序用户 ID（如果转换失败则返回 Null）
