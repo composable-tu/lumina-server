@@ -24,8 +24,11 @@ import org.lumina.models.*
 import org.lumina.routes.ApprovalAction.APPROVE
 import org.lumina.routes.ApprovalAction.REJECT
 import org.lumina.routes.ApprovalAction.WITHDRAW
+import org.lumina.routes.data.EncryptContentRequest
 import org.lumina.utils.*
 import org.lumina.utils.security.SoterResultFromUser
+import org.lumina.utils.security.WeixinUserCryptoKeyRequest
+import org.lumina.utils.security.weixinDecryptContent
 
 /**
  * 审批路由
@@ -239,7 +242,18 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                 } catch (_: NumberFormatException) {
                     return@post call.respond(HttpStatusCode.BadRequest, INVALID_APPROVAL_ID)
                 }
-                val actionRequest = call.receive<ApprovalActionRequest>().normalized() as ApprovalActionRequest
+                val encryptRequest = call.receive<EncryptContentRequest>()
+                val weixinUserCryptoKeyRequest = WeixinUserCryptoKeyRequest(
+                    weixinOpenId,
+                    encryptRequest.encryptContent,
+                    encryptRequest.encryptVersion,
+                    encryptRequest.weixinLoginCode
+                )
+                val actionRequest = Json.decodeFromString<ApprovalActionRequest>(
+                    weixinDecryptContent(
+                        appId, appSecret, weixinUserCryptoKeyRequest
+                    )
+                ).normalized() as ApprovalActionRequest
 
                 protectedRoute(
                     weixinOpenId,
@@ -273,15 +287,23 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                                             joinGroupApprovalRow[JoinGroupApprovals.requesterUserName]
                                         val requesterWeixinOpenId =
                                             joinGroupApprovalRow[JoinGroupApprovals.requesterWeixinOpenId]
-                                        Users.insert {
+                                        val requesterUserRow =
+                                            Users.selectAll().where { Users.weixinOpenId eq requesterWeixinOpenId }
+                                                .firstOrNull()
+                                        if (requesterUserRow == null) Users.insert {
                                             it[userId] = requesterUserId
                                             it[Users.weixinOpenId] = requesterWeixinOpenId
                                             it[userName] = requesterUserName
-                                        }
+                                        } else if (requesterUserRow[Users.userId] != requesterUserId) throw IllegalStateException(
+                                            "服务器错误"
+                                        )
                                         UserGroups.insert {
                                             it[userId] = requesterUserId
                                             it[groupId] = targetGroupId
                                             it[permission] = UserRole.MEMBER
+                                        }
+                                        Approvals.update({ Approvals.approvalId eq approvalId }) {
+                                            it[status] = ApprovalStatus.APPROVED
                                         }
                                     }
 
@@ -300,6 +322,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     }
 
                 }
+                call.respond(HttpStatusCode.OK)
             }
         }
     }
@@ -351,7 +374,6 @@ data class ApprovalInfo(
  * @param targetGroupId 申请加入的群组 ID
  * @param requesterUserId 申请加入的群组的请求者自填写的个人 ID
  * @param requesterUserName 申请加入的群组的请求者自填写的个人昵称
- * @param requesterWeixinOpenId 申请加入的群组的请求者的微信小程序 OpenID，由微信小程序端 wx.login() 自动生成
  * @param createdAt 创建时间
  * @param approvalType 审批类型
  * @param status 审批状态
@@ -366,13 +388,13 @@ data class JoinGroupApprovalInfo(
     val targetGroupId: String,
     val requesterUserId: String,
     val requesterUserName: String,
-    val requesterWeixinOpenId: String,
     val createdAt: LocalDateTime,
     val approvalType: String,
     val status: String,
     val comment: String?,
     val reviewer: String?,
     val reviewerName: String?,
+    val requesterDevice: String? = null,
     val reviewedAt: LocalDateTime?
 )
 
@@ -433,13 +455,13 @@ fun Transaction.buildJoinGroupApprovalInfo(approvalId: Long, approvalRow: Result
         targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId],
         requesterUserId = joinGroupApprovalRow[JoinGroupApprovals.requesterUserId],
         requesterUserName = joinGroupApprovalRow[JoinGroupApprovals.requesterUserName],
-        requesterWeixinOpenId = joinGroupApprovalRow[JoinGroupApprovals.requesterWeixinOpenId],
         createdAt = approvalRow[Approvals.createdAt].toKotlinLocalDateTime(),
         approvalType = approvalRow[Approvals.approvalType].toString(),
         status = approvalRow[Approvals.status].toString(),
         comment = approvalRow[Approvals.comment],
         reviewer = reviewer,
         reviewerName = reviewerName,
+        requesterDevice = joinGroupApprovalRow[JoinGroupApprovals.requesterDevice],
         reviewedAt = approvalRow[Approvals.reviewedAt]?.toKotlinLocalDateTime()
     )
 }

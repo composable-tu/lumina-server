@@ -11,8 +11,10 @@ import kotlinx.datetime.toKotlinLocalDateTime
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -21,6 +23,9 @@ import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.lumina.fields.ReturnInvalidReasonFields.UNSAFE_CONTENT
 import org.lumina.models.*
 import org.lumina.utils.*
+import org.lumina.utils.RuntimePermission.ADMIN
+import org.lumina.utils.RuntimePermission.MEMBER
+import org.lumina.utils.security.SoterResultFromUser
 import org.lumina.utils.security.WeixinContentSecurityRequest
 import org.lumina.utils.security.WeixinContentSecurityScene
 import org.lumina.utils.security.temporaryWeixinContentSecurityCheck
@@ -32,6 +37,7 @@ import java.time.LocalDateTime
  * 功能：
  * - 获取自己加入的团体
  * - 申请加入团体
+ * - 退出团体
  * - 团体管理员、超管、成员获取团体信息
  */
 fun Route.groupRoute(appId: String, appSecret: String) {
@@ -72,6 +78,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                     val requesterUserId = request.requesterUserId
                     val requesterUserName = request.requesterUserName
                     val requesterComment = request.requesterComment
+                    val requesterDevice = request.requesterDevice
                     val groupPreAuthToken = request.groupPreAuthToken
                     val userIdFromDB = transaction {
                         val userIdFromDB = weixinOpenId2UserIdOrNull(weixinOpenId)
@@ -83,17 +90,17 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                         if (!isGroupCreated(groupId)) throw IllegalArgumentException("该团体不存在")
 
                         // 验证此前是否有同团体号下待审批的申请
-                        val joinGroupApproval = JoinGroupApprovals.selectAll()
-                            .where { (JoinGroupApprovals.requesterWeixinOpenId eq weixinOpenId) and (JoinGroupApprovals.targetGroupId eq groupId) }
-                            .firstOrNull()
-                        if (joinGroupApproval != null) {
-                            val approvalId = joinGroupApproval[JoinGroupApprovals.approvalId]
-                            val approvalRow =
-                                Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
-                            if (approvalRow == null) throw Exception("服务端出现错误")
-                            if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) throw BadRequestException("您此前已提交过申请，请等待审批")
+                        if (groupPreAuthToken.isNullOrEmpty()) {
+                            val joinGroupApprovalRows = JoinGroupApprovals.selectAll()
+                                .where { (JoinGroupApprovals.requesterWeixinOpenId eq weixinOpenId) and (JoinGroupApprovals.targetGroupId eq groupId) }
+                            joinGroupApprovalRows.forEach { joinGroupApprovalRow ->
+                                val approvalId = joinGroupApprovalRow[JoinGroupApprovals.approvalId]
+                                val approvalRow =
+                                    Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
+                                if (approvalRow == null) throw Exception("服务端出现错误")
+                                if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) throw BadRequestException("您此前已提交过申请，请等待审批")
+                            }
                         }
-
                         userIdFromDB
                     }
 
@@ -142,6 +149,7 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             it[this.targetGroupId] = groupId
                             it[this.requesterUserId] = requesterUserId
                             it[this.requesterUserName] = requesterUserName
+                            it[this.requesterDevice] = requesterDevice
                             it[this.requesterWeixinOpenId] = weixinOpenId
                             if (!groupPreAuthToken.isNullOrEmpty()) it[this.preAuthTokenSM3] = preAuthTokenSM3
                         }
@@ -151,11 +159,55 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                                 it[this.groupId] = groupId
                                 it[this.permission] = UserRole.MEMBER
                             }
+                            val joinGroupApprovalRows = JoinGroupApprovals.selectAll()
+                                .where { (JoinGroupApprovals.requesterWeixinOpenId eq weixinOpenId) and (JoinGroupApprovals.targetGroupId eq groupId) }
+                            joinGroupApprovalRows.forEach { joinGroupApprovalRow ->
+                                val approvalId = joinGroupApprovalRow[JoinGroupApprovals.approvalId]
+                                val approvalRow =
+                                    Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
+                                if (approvalRow == null) throw Exception("服务端出现错误")
+                                if (approvalRow[Approvals.status] == ApprovalStatus.PENDING) Approvals.deleteWhere {
+                                    Approvals.approvalId eq approvalId
+                                }
+                            }
                         }
                         groupPreAuthTokenIsOk
                     }
                     val textInfo = if (isJoin) "已成功进入团体" else "申请提交成功"
                     call.respond(textInfo)
+                }
+
+                // 退出团体
+                post("/quit") {
+                    val groupId = call.parameters["groupId"]?.trim() ?: return@post call.respond(
+                        HttpStatusCode.BadRequest, INVALID_GROUP_ID
+                    )
+                    val weixinOpenId =
+                        call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@post call.respond(
+                            HttpStatusCode.Unauthorized, INVALID_JWT
+                        )
+                    val request = call.receive<GroupQuitRequest>().normalized() as GroupQuitRequest
+                    protectedRoute(
+                        weixinOpenId,
+                        groupId,
+                        setOf(ADMIN, MEMBER),
+                        CheckType.GROUP_ID,
+                        "退出团体",
+                        true,
+                        request.soterInfo
+                    ) {
+                        transaction {
+                            val userId =
+                                weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw BadRequestException(INVALID_JWT)
+                            val groupRow = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()
+                                ?: throw BadRequestException(INVALID_GROUP_ID)
+                            if (groupRow[Groups.superAdmin] == userId) throw BadRequestException("超级管理员无法退出此团体")
+                            UserGroups.deleteWhere {
+                                (UserGroups.userId eq userId) and (UserGroups.groupId eq groupId)
+                            }
+                        }
+                        call.respond(HttpStatusCode.OK)
+                    }
                 }
 
                 // 团体管理员、超管、成员获取团体信息
@@ -213,7 +265,13 @@ private data class GroupJoinRequest(
     val requesterUserId: String,
     val requesterUserName: String,
     val requesterComment: String? = null,
+    val requesterDevice: String? = null,
     val groupPreAuthToken: String? = null
+)
+
+@Serializable
+private data class GroupQuitRequest(
+    val soterInfo: SoterResultFromUser? = null
 )
 
 @OptIn(ExperimentalSerializationApi::class)

@@ -86,7 +86,7 @@ suspend fun Route.protectedRoute(
             val isSoterEnabled = isUserSoterEnabledWithUserId(userId)
             if (isSoterEnabled) {
                 if (soterResultFromUser == null) return@newSuspendedTransaction setError("SOTER 验证失败")
-                if (soterResultFromUser.json_string.isNullOrEmpty() || soterResultFromUser.json_signature.isNullOrEmpty()) return@newSuspendedTransaction setError(
+                if (soterResultFromUser.json_string.isEmpty() || soterResultFromUser.json_signature.isEmpty()) return@newSuspendedTransaction setError(
                     "SOTER 验证参数缺失"
                 )
                 val weixinSoterCheck = weixinSoterCheck(
@@ -105,7 +105,7 @@ suspend fun Route.protectedRoute(
 
             TASK_ID -> {
                 // val isVerificationPassed = protectedRouteWithTaskId(userId, groupIdOrTaskIdOrApproveId, permissions)
-                // if (!isVerificationPassed) setError("无权限") // 无权限
+                // if (!isVerificationPassed) setError("您没有操作此行动的权限") // 无权限
                 // else true
                 true
             }
@@ -113,11 +113,11 @@ suspend fun Route.protectedRoute(
             APPROVAL_ID -> {
                 val approveId = try {
                     groupIdOrTaskIdOrApproveId.toLong()
-                } catch (e: NumberFormatException) {
+                } catch (_: NumberFormatException) {
                     return@newSuspendedTransaction setError("无效的审批 ID")
                 }
                 val isVerificationPassed = protectedRouteWithApproveId(weixinOpenId, userId, approveId, permissions)
-                if (!isVerificationPassed) setError("无权限") else true
+                if (!isVerificationPassed) setError("您没有操作此行动的权限") else true
             }
         }
     }
@@ -173,9 +173,9 @@ fun Transaction.protectedRouteWithApproveId(
                     ?: throw IllegalArgumentException("审批不存在")
             val requesterWeixinOpenId = joinGroupApprovalRow[JoinGroupApprovals.requesterWeixinOpenId]
             val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]
-            if (permissions.contains(SELF)) requesterWeixinOpenId == weixinOpenId else protectedRouteWithGroupId(
+            if (permissions.contains(SELF)) requesterWeixinOpenId == weixinOpenId || protectedRouteWithGroupId(
                 userId, targetGroupId, permissions
-            )
+            ) else protectedRouteWithGroupId(userId, targetGroupId, permissions)
         }
 
         ApprovalTargetType.TASK_CREATION -> {
