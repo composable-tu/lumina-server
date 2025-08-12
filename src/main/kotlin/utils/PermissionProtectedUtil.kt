@@ -16,6 +16,10 @@ import java.time.format.DateTimeFormatter
 
 /**
  * 运行时角色权限
+ *
+ * 注意：权限检查采用精确匹配机制，仅当用户角色与指定权限完全匹配时才允许访问。
+ *
+ * 例：如果指定了权限为只有成员，则超管和管理员不可访问；如果指定了权限为只有管理员，则超管和成员不可访问
  * @property SUPER_ADMIN 超级管理员（唯一，可转让）
  * @property ADMIN 管理员
  * @property MEMBER 普通成员
@@ -104,10 +108,13 @@ suspend fun Route.protectedRoute(
             }
 
             TASK_ID -> {
-                // val isVerificationPassed = protectedRouteWithTaskId(userId, groupIdOrTaskIdOrApproveId, permissions)
-                // if (!isVerificationPassed) setError("您没有操作此行动的权限") // 无权限
-                // else true
-                true
+                val taskId = try {
+                    groupIdOrTaskIdOrApproveId.toLong()
+                } catch (_: NumberFormatException) {
+                    return@newSuspendedTransaction setError("无效的审批 ID")
+                }
+                val isVerificationPassed = protectedRouteWithTaskId(userId, taskId, permissions)
+                if (!isVerificationPassed) setError("您没有操作此行动的权限") else true
             }
 
             APPROVAL_ID -> {
@@ -153,9 +160,14 @@ fun Transaction.protectedRouteWithGroupId(
  * 基于 User ID 和 Task ID 检查用户是否有权对某任务执行某个操作
  */
 fun Transaction.protectedRouteWithTaskId(
-    userId: String, taskId: String, permissions: Set<RuntimePermission>
+    userId: String, taskId: Long, permissions: Set<RuntimePermission>
 ): Boolean {
-    return TODO()
+    val taskRow =
+        Tasks.selectAll().where { Tasks.taskId eq taskId }.firstOrNull() ?: throw IllegalArgumentException("任务不存在")
+    val creator = taskRow[Tasks.creator]
+    if (creator == userId && permissions.contains(SELF)) return true else return protectedRouteWithGroupId(
+        userId, taskRow[Tasks.groupId], permissions
+    )
 }
 
 /**
@@ -180,11 +192,6 @@ fun Transaction.protectedRouteWithApproveId(
 
         ApprovalTargetType.TASK_CREATION -> {
             // TODO: 任务创建申请
-            true
-        }
-
-        ApprovalTargetType.TASK_EXPAND_GROUP -> {
-            // TODO:
             true
         }
     }

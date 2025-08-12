@@ -10,9 +10,8 @@ import org.lumina.models.ApprovalTargetType.*
  * 审批目标类型
  * @property TASK_CREATION 创建任务
  * @property GROUP_JOIN 加入团体
- * @property TASK_EXPAND_GROUP TODO: 扩展任务团体
  */
-enum class ApprovalTargetType { TASK_CREATION, GROUP_JOIN, TASK_EXPAND_GROUP }
+enum class ApprovalTargetType { TASK_CREATION, GROUP_JOIN }
 
 /**
  * 审批状态

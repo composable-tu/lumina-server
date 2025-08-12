@@ -3,6 +3,7 @@ package org.lumina.routes
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -55,13 +56,6 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
                         HttpStatusCode.Unauthorized, INVALID_JWT
                     )
-                val approvalId = try {
-                    approvalIdString.toLong()
-                } catch (_: NumberFormatException) {
-                    return@get call.respond(
-                        HttpStatusCode.BadRequest, INVALID_APPROVAL_ID
-                    )
-                }
                 protectedRoute(
                     weixinOpenId,
                     approvalIdString,
@@ -70,6 +64,11 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     "根据审批 ID 获取审批信息",
                     false
                 ) {
+                    val approvalId = try {
+                        approvalIdString.toLong()
+                    } catch (_: NumberFormatException) {
+                        throw BadRequestException(INVALID_APPROVAL_ID)
+                    }
                     val approvalInfo = transaction {
                         val approvalRow =
                             Approvals.selectAll().where { Approvals.approvalId eq approvalId }.firstOrNull()
@@ -82,10 +81,6 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
 
                             ApprovalTargetType.GROUP_JOIN -> {
                                 buildJoinGroupApprovalInfo(approvalId, approvalRow)
-                            }
-
-                            ApprovalTargetType.TASK_EXPAND_GROUP -> {
-                                TODO()
                             }
                         }
                     }
@@ -319,10 +314,6 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                                     }
                                 }
                             }
-
-                            ApprovalTargetType.TASK_EXPAND_GROUP -> {
-                                TODO()
-                            }
                         }
                     }
 
@@ -412,10 +403,6 @@ fun Transaction.buildApprovalInfo(approvalRow: ResultRow, type: ApprovalTargetTy
         ApprovalTargetType.GROUP_JOIN -> {
             Approvals.selectAll().where { Approvals.approvalId eq approvalRow[JoinGroupApprovals.approvalId] }
                 .firstOrNull() ?: throw IllegalStateException("服务器错误")
-        }
-
-        ApprovalTargetType.TASK_EXPAND_GROUP -> {
-            TODO()
         }
     }
     return ApprovalInfo(
