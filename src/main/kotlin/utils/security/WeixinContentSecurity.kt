@@ -122,7 +122,8 @@ private val json = Json { ignoreUnknownKeys = true }
 suspend fun weixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest
 ): WeixinContentSecurityResponse {
-    val accessToken = getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
+    val accessToken =
+        getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
     val response = commonClient.post {
         url {
             protocol = URLProtocol.HTTPS
@@ -144,7 +145,6 @@ suspend fun temporaryWeixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest
 ): Boolean {
     val result = weixinContentSecurityCheck(appId, appSecret, request)
-    val suggest = result.result?.suggest
-    if (suggest == null) throw IllegalStateException("获取微信内容安全检测结果失败")
+    val suggest = result.result?.suggest ?: throw IllegalStateException("获取微信内容安全检测结果失败")
     return suggest == "pass" || suggest == "review"
 }

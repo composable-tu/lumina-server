@@ -99,6 +99,7 @@ fun Route.taskRoute(appId: String, appSecret: String) {
                 val endTime = request.endTime
                 val memberPolicy = request.memberPolicy
                 val memberPolicyList = request.memberPolicyList ?: emptyList()
+                val checkInToken = request.checkInToken
 
                 if (request.checkInType == CheckInType.TOKEN && request.checkInToken.isNullOrEmpty()) return@post call.respond(
                     HttpStatusCode.BadRequest, "请填写签到验证码"
@@ -109,7 +110,7 @@ fun Route.taskRoute(appId: String, appSecret: String) {
 
                 val isContentSafety = temporaryWeixinContentSecurityCheck(
                     appId, appSecret, WeixinContentSecurityRequest(
-                        content = description ?: request.checkInToken ?: taskName,
+                        content = if (!description.isNullOrEmpty()) description else if (!checkInToken.isNullOrEmpty()) checkInToken else taskName,
                         scene = WeixinContentSecurityScene.SCENE_FORUM,
                         title = taskName,
                         openid = weixinOpenId,
@@ -322,7 +323,7 @@ private fun Transaction.getTaskStatus(taskRow: ResultRow, taskId: Long, userId: 
  * @param PENDING 待参与
  * @param PARTICIPATED 已参与
  * @param NOT_REQUIRED 无需参与
- * @param EXPIRED 已结束
+ * @param EXPIRED 已过期
  */
 enum class TaskStatus { PENDING, PARTICIPATED, NOT_REQUIRED, EXPIRED }
 
