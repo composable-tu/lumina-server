@@ -6,7 +6,6 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toKotlinLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -29,6 +28,8 @@ import org.lumina.utils.*
 import org.lumina.utils.security.SoterResultFromUser
 import org.lumina.utils.security.WeixinUserCryptoKeyRequest
 import org.lumina.utils.security.weixinDecryptContent
+import java.time.LocalDateTime
+import kotlinx.datetime.LocalDateTime as KotlinLocalDateTime
 
 /**
  * 审批路由
@@ -270,6 +271,8 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                                 ?: throw IllegalArgumentException(INVALID_APPROVAL_ID)
                         val approvalType = approvalRow[Approvals.approvalType]
                         if (actionRequest.approvalType != approvalType.toString()) throw IllegalArgumentException("用户端传递的审批类型与实际审批类型不匹配")
+                        val adminUserId =
+                            weixinOpenId2UserIdOrNull(weixinOpenId) ?: throw IllegalStateException("服务器错误")
                         when (approvalType) {
                             ApprovalTargetType.TASK_CREATION -> {
                                 TODO()
@@ -291,26 +294,28 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                                             Users.selectAll().where { Users.weixinOpenId eq requesterWeixinOpenId }
                                                 .firstOrNull()
                                         if (requesterUserRow == null) Users.insert {
-                                            it[userId] = requesterUserId
-                                            it[Users.weixinOpenId] = requesterWeixinOpenId
-                                            it[userName] = requesterUserName
+                                            it[this.userId] = requesterUserId
+                                            it[this.weixinOpenId] = requesterWeixinOpenId
+                                            it[this.userName] = requesterUserName
                                         } else if (requesterUserRow[Users.userId] != requesterUserId) throw IllegalStateException(
                                             "服务器错误"
                                         )
                                         UserGroups.insert {
-                                            it[userId] = requesterUserId
-                                            it[groupId] = targetGroupId
-                                            it[permission] = UserRole.MEMBER
+                                            it[this.userId] = requesterUserId
+                                            it[this.groupId] = targetGroupId
+                                            it[this.permission] = UserRole.MEMBER
                                         }
                                         Approvals.update({ Approvals.approvalId eq approvalId }) {
-                                            it[status] = ApprovalStatus.APPROVED
+                                            it[this.status] = ApprovalStatus.APPROVED
+                                            it[this.reviewedAt] = LocalDateTime.now()
+                                            it[this.reviewer] = adminUserId
                                         }
                                     }
 
-                                    REJECT -> {
-                                        Approvals.update({ Approvals.approvalId eq approvalId }) {
-                                            it[status] = ApprovalStatus.REJECTED
-                                        }
+                                    REJECT -> Approvals.update({ Approvals.approvalId eq approvalId }) {
+                                        it[this.status] = ApprovalStatus.REJECTED
+                                        it[this.reviewedAt] = LocalDateTime.now()
+                                        it[this.reviewer] = adminUserId
                                     }
                                 }
                             }
@@ -352,34 +357,29 @@ object ApprovalAction {
  * @param approvalType 审批类型
  * @param status 审批状态
  * @param comment 任务请求者的私下评论
- * @param reviewer 审批人 ID
- * @param reviewerName 审批人昵称
  * @param reviewedAt 审批时间
  */
 @Serializable
 data class ApprovalInfo(
     val approvalId: Long,
-    val createdAt: LocalDateTime,
+    val createdAt: KotlinLocalDateTime,
     val approvalType: String,
     val status: String,
     val comment: String?,
-    val reviewer: String?,
-    val reviewerName: String?,
-    val reviewedAt: LocalDateTime?
+    val reviewedAt: KotlinLocalDateTime?
 )
 
 /**
  * 加入群组审批信息
  * @param approvalId 审批 ID
- * @param targetGroupId 申请加入的群组 ID
+ * @param targetGroupId 申请加入的团体 ID
  * @param requesterUserId 申请加入的群组的请求者自填写的个人 ID
  * @param requesterUserName 申请加入的群组的请求者自填写的个人昵称
  * @param createdAt 创建时间
  * @param approvalType 审批类型
  * @param status 审批状态
+ * @param targetGroupName 申请加入的团体名
  * @param comment 任务请求者的私下评论
- * @param reviewer 审批人 ID
- * @param reviewerName 审批人昵称
  * @param reviewedAt 审批时间
  */
 @Serializable
@@ -388,14 +388,13 @@ data class JoinGroupApprovalInfo(
     val targetGroupId: String,
     val requesterUserId: String,
     val requesterUserName: String,
-    val createdAt: LocalDateTime,
+    val createdAt: KotlinLocalDateTime,
     val approvalType: String,
     val status: String,
+    val targetGroupName: String?,
     val comment: String?,
-    val reviewer: String?,
-    val reviewerName: String?,
     val requesterDevice: String? = null,
-    val reviewedAt: LocalDateTime?
+    val reviewedAt: KotlinLocalDateTime?
 )
 
 /**
@@ -419,18 +418,12 @@ fun Transaction.buildApprovalInfo(approvalRow: ResultRow, type: ApprovalTargetTy
             TODO()
         }
     }
-    val reviewer = commonApprovalRow[Approvals.reviewer]
-    val reviewerName =
-        if (reviewer == null) null else Users.selectAll().where { Users.userId eq reviewer }.firstOrNull()
-            ?.get(Users.userName)
     return ApprovalInfo(
         approvalId = commonApprovalRow[Approvals.approvalId],
         createdAt = commonApprovalRow[Approvals.createdAt].toKotlinLocalDateTime(),
         approvalType = commonApprovalRow[Approvals.approvalType].toString(),
         status = commonApprovalRow[Approvals.status].toString(),
         comment = commonApprovalRow[Approvals.comment],
-        reviewer = reviewer,
-        reviewerName = reviewerName,
         reviewedAt = commonApprovalRow[Approvals.reviewedAt]?.toKotlinLocalDateTime()
     )
 }
@@ -446,21 +439,19 @@ fun Transaction.buildJoinGroupApprovalInfo(approvalId: Long, approvalRow: Result
     val joinGroupApprovalRow =
         JoinGroupApprovals.selectAll().where { JoinGroupApprovals.approvalId eq approvalId }.firstOrNull()
             ?: throw IllegalStateException("服务器错误")
-    val reviewer = approvalRow[Approvals.reviewer]
-    val reviewerName =
-        if (reviewer == null) null else Users.selectAll().where { Users.userId eq reviewer }.firstOrNull()
-            ?.get(Users.userName)
+    val targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId]
+    val targetGroupName =
+        Groups.selectAll().where { Groups.groupId eq targetGroupId }.firstOrNull()?.get(Groups.groupName)
     return JoinGroupApprovalInfo(
         approvalId = approvalId,
-        targetGroupId = joinGroupApprovalRow[JoinGroupApprovals.targetGroupId],
+        targetGroupId = targetGroupId,
         requesterUserId = joinGroupApprovalRow[JoinGroupApprovals.requesterUserId],
         requesterUserName = joinGroupApprovalRow[JoinGroupApprovals.requesterUserName],
         createdAt = approvalRow[Approvals.createdAt].toKotlinLocalDateTime(),
         approvalType = approvalRow[Approvals.approvalType].toString(),
         status = approvalRow[Approvals.status].toString(),
+        targetGroupName = targetGroupName,
         comment = approvalRow[Approvals.comment],
-        reviewer = reviewer,
-        reviewerName = reviewerName,
         requesterDevice = joinGroupApprovalRow[JoinGroupApprovals.requesterDevice],
         reviewedAt = approvalRow[Approvals.reviewedAt]?.toKotlinLocalDateTime()
     )

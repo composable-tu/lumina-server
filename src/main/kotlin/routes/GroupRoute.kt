@@ -138,11 +138,11 @@ fun Route.groupRoute(appId: String, appSecret: String) {
                             it[this.userName] = requesterUserName
                         }
                         val approvalId = Approvals.insert {
-                            it[approvalType] = ApprovalTargetType.GROUP_JOIN
-                            it[status] =
+                            it[this.approvalType] = ApprovalTargetType.GROUP_JOIN
+                            it[this.status] =
                                 if (groupPreAuthTokenIsOk) ApprovalStatus.AUTO_PASSED else ApprovalStatus.PENDING
-                            it[createdAt] = LocalDateTime.now()
-                            it[comment] = requesterComment
+                            it[this.createdAt] = LocalDateTime.now()
+                            it[this.comment] = requesterComment
                         }[Approvals.approvalId]
                         JoinGroupApprovals.insert {
                             it[this.approvalId] = approvalId
