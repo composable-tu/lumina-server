@@ -100,7 +100,7 @@ fun Route.taskRoute(appId: String, appSecret: String) {
                 val memberPolicy = request.memberPolicy
                 val memberPolicyList = request.memberPolicyList ?: emptyList()
                 val checkInToken = request.checkInToken
-
+                if (taskName.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, "请填写任务名")
                 if (request.checkInType == CheckInType.TOKEN && request.checkInToken.isNullOrEmpty()) return@post call.respond(
                     HttpStatusCode.BadRequest, "请填写签到验证码"
                 )
