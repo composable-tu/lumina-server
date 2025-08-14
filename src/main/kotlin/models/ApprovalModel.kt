@@ -4,7 +4,8 @@ import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.datetime
 import org.lumina.models.ApprovalStatus.*
-import org.lumina.models.ApprovalTargetType.*
+import org.lumina.models.ApprovalTargetType.GROUP_JOIN
+import org.lumina.models.ApprovalTargetType.TASK_CREATION
 
 /**
  * 审批目标类型

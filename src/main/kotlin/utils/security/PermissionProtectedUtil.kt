@@ -1,4 +1,4 @@
-package org.lumina.utils
+package org.lumina.utils.security
 
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.v1.core.Transaction
@@ -6,11 +6,9 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 import org.lumina.models.*
-import org.lumina.utils.CheckType.*
-import org.lumina.utils.RuntimePermission.*
-import org.lumina.utils.security.SoterResultFromUser
-import org.lumina.utils.security.WeixinSoterCheckRequest
-import org.lumina.utils.security.weixinSoterCheck
+import org.lumina.utils.getUserIdByWeixinOpenIdOrNullFromDB
+import org.lumina.utils.security.CheckType.*
+import org.lumina.utils.security.RuntimePermission.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 

@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import org.lumina.generateJWT
+import org.lumina.generateJWE
 import org.lumina.models.Users
 import org.lumina.utils.code2WeixinOpenIdOrNull
 import org.lumina.utils.normalized
@@ -29,7 +29,7 @@ fun Routing.weixinAuthRoute(appId: String, appSecret: String) {
             val weixinUserInfo = code2WeixinOpenIdOrNull(appId, appSecret, request.code)
             val weixinOpenId = weixinUserInfo.openid ?: throw MissingTokenException()
             val weixinUnionId = weixinUserInfo.unionid
-            val jwt = generateJWT(weixinOpenId, weixinUnionId)
+            val jwt = generateJWE(weixinOpenId, weixinUnionId)
             if (weixinUnionId != null) transaction {
                 val userRow = Users.selectAll().where { Users.weixinOpenId eq weixinOpenId }.firstOrNull()
                 if (userRow != null) Users.update({ Users.weixinOpenId eq weixinOpenId }) {

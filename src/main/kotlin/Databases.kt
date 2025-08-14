@@ -5,15 +5,7 @@ import org.jetbrains.exposed.v1.core.StdOutSqlLogger
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.lumina.models.Approvals
-import org.lumina.models.CheckInTaskInfoTable
-import org.lumina.models.Groups
-import org.lumina.models.JoinGroupApprovals
-import org.lumina.models.TaskMemberPolicies
-import org.lumina.models.TaskParticipationRecord
-import org.lumina.models.Tasks
-import org.lumina.models.UserGroups
-import org.lumina.models.Users
+import org.lumina.models.*
 
 fun Application.configureDatabases() {
     val database = Database.connect(
