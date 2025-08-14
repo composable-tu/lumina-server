@@ -48,7 +48,7 @@ suspend fun weixinDecryptContent(appId: String, appSecret: String, request: Weix
 
     val encryptKeyByteArray = encryptKeyHex.hexStringToByteArray()
     val secretKey = SecretKeySpec(encryptKeyByteArray, "SM4")
-    val cipher = Cipher.getInstance("SM4/CBC/PKCS7Padding")
+    val cipher = Cipher.getInstance("SM4/CBC/NoPadding")
     val paramSpec = IvParameterSpec(sm3Iv.hexStringToByteArray())
 
     cipher.init(Cipher.DECRYPT_MODE, secretKey, paramSpec)
