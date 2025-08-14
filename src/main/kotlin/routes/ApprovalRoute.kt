@@ -24,8 +24,8 @@ import org.lumina.models.*
 import org.lumina.routes.ApprovalAction.APPROVE
 import org.lumina.routes.ApprovalAction.REJECT
 import org.lumina.routes.ApprovalAction.WITHDRAW
-import org.lumina.routes.data.EncryptContentRequest
 import org.lumina.utils.*
+import org.lumina.utils.security.EncryptContentRequest
 import org.lumina.utils.security.SoterResultFromUser
 import org.lumina.utils.security.WeixinUserCryptoKeyRequest
 import org.lumina.utils.security.weixinDecryptContent
@@ -243,6 +243,7 @@ fun Route.approvalRoute(appId: String, appSecret: String) {
                     weixinOpenId,
                     encryptRequest.encryptContent,
                     encryptRequest.encryptVersion,
+                    encryptRequest.hmacSignature,
                     encryptRequest.weixinLoginCode
                 )
                 val actionRequest = Json.decodeFromString<ApprovalActionRequest>(

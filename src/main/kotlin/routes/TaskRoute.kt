@@ -22,7 +22,6 @@ import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_TASK_ID
 import org.lumina.models.*
 import org.lumina.routes.TaskStatus.*
-import org.lumina.routes.data.EncryptContentRequest
 import org.lumina.utils.*
 import org.lumina.utils.security.*
 import java.time.LocalDateTime
@@ -87,6 +86,7 @@ fun Route.taskRoute(appId: String, appSecret: String) {
                     weixinOpenId,
                     encryptRequest.encryptContent,
                     encryptRequest.encryptVersion,
+                    encryptRequest.hmacSignature,
                     encryptRequest.weixinLoginCode
                 )
 

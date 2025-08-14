@@ -6,10 +6,9 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
 import org.lumina.fields.ReturnInvalidReasonFields.INVALID_JWT
-import org.lumina.routes.data.EncryptContentRequest
 import org.lumina.utils.normalized
+import org.lumina.utils.security.EncryptContentRequest
 import org.lumina.utils.security.WeixinUserCryptoKeyRequest
 import org.lumina.utils.security.weixinDecryptContent
 
@@ -36,7 +35,11 @@ fun Routing.devRoute(appId: String, appSecret: String) {
                     )
                 val request = call.receive<EncryptContentRequest>().normalized() as EncryptContentRequest
                 val weixinUserCryptoKeyRequest = WeixinUserCryptoKeyRequest(
-                    weixinOpenId, request.encryptContent, request.encryptVersion, request.weixinLoginCode
+                    weixinOpenId,
+                    request.encryptContent,
+                    request.encryptVersion,
+                    request.hmacSignature,
+                    request.weixinLoginCode
                 )
                 val decryptedString = weixinDecryptContent(appId, appSecret, weixinUserCryptoKeyRequest)
                 call.respond(decryptedString)

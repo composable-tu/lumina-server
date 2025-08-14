@@ -9,6 +9,7 @@ import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
 import org.lumina.utils.*
 import javax.crypto.Cipher
 import javax.crypto.Mac
+import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
@@ -48,11 +49,15 @@ suspend fun weixinDecryptContent(appId: String, appSecret: String, request: Weix
 
     val encryptKeyByteArray = encryptKeyHex.hexStringToByteArray()
     val secretKey = SecretKeySpec(encryptKeyByteArray, "SM4")
-    val cipher = Cipher.getInstance("SM4/CBC/NoPadding")
-    val paramSpec = IvParameterSpec(sm3Iv.hexStringToByteArray())
+    val hmacSignatureByteArray = request.hmacSignature.hexStringToByteArray()
 
+    verifyHmac(request.encryptContent.toByteArray(), hmacSignatureByteArray, secretKey)
+
+    val cipher = Cipher.getInstance("SM4/CBC/PKCS7Padding")
+    val encryptContentByteArray = request.encryptContent.hexStringToByteArray()
+    val paramSpec = IvParameterSpec(sm3Iv.hexStringToByteArray())
     cipher.init(Cipher.DECRYPT_MODE, secretKey, paramSpec)
-    val decrypted = cipher.doFinal(request.encryptContent.hexStringToByteArray())
+    val decrypted = cipher.doFinal(encryptContentByteArray)
     return String(decrypted)
 }
 
@@ -73,9 +78,29 @@ suspend fun getWeixinEncryptKey(
     return json.decodeFromString<WeixinUserCryptoKeyResponse>(response.bodyAsText())
 }
 
+private fun verifyHmac(data: ByteArray, receivedMac: ByteArray, key: SecretKey) {
+    val hmac = Mac.getInstance("HmacSM3")
+    hmac.init(key)
+
+    val calculatedMac = hmac.doFinal(data)
+    if (!constantTimeEquals(calculatedMac, receivedMac)) throw SecurityException("HMAC 验证失败")
+}
+
+private fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
+    if (a.size != b.size) return false
+
+    var result = 0
+    for (i in a.indices) result = result or (a[i].toInt() xor b[i].toInt())
+    return result == 0
+}
+
 @Serializable
 data class WeixinUserCryptoKeyRequest(
-    val openid: String, val encryptContent: String, val encryptVersion: Int, val weixinLoginCode: String
+    val openid: String,
+    val encryptContent: String,
+    val encryptVersion: Int,
+    val hmacSignature: String,
+    val weixinLoginCode: String
 )
 
 @Serializable
@@ -125,3 +150,14 @@ private fun bytesToHex(bytes: ByteArray): String {
     }
     return String(hexChars)
 }
+
+/**
+ * 经过中国商密 SM4 加密的前端请求内容，解密后才是正常请求信息
+ */
+@Serializable
+data class EncryptContentRequest(
+    val encryptContent: String,
+    val encryptVersion: Int,
+    val hmacSignature: String,
+    val weixinLoginCode: String,
+)
