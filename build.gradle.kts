@@ -1,15 +1,15 @@
 val exposed_version = "0.61.0"
 val h2_version = "2.3.232"
-val kotlin_version="2.2.0"
+val kotlin_version="2.2.10"
 val logback_version="1.5.18"
 val postgres_version="42.7.7"
-val kona_sm_version="1.0.17"
-val tika_version="3.2.0"
+val kona_sm_version="1.0.18"
+val tika_version="3.2.2"
 
 plugins {
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.2.10"
     id("io.ktor.plugin") version "3.2.3"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.21"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.10"
     id("org.sonarqube") version "6.2.0.5505"
 }
 
@@ -57,7 +57,7 @@ dependencies {
     implementation("io.ktor:ktor-server-config-yaml")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
     implementation("ch.qos.logback:logback-classic:1.5.18")
     implementation("org.apache.tika:tika-core:$tika_version")
     implementation("org.apache.tika:tika-parsers:$tika_version")
