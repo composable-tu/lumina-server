@@ -1,18 +1,18 @@
 package org.lumina.models
 
-import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.datetime
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.javatime.datetime
 import org.lumina.models.ApprovalStatus.*
-import org.lumina.models.ApprovalTargetType.*
+import org.lumina.models.ApprovalTargetType.GROUP_JOIN
+import org.lumina.models.ApprovalTargetType.TASK_CREATION
 
 /**
  * 审批目标类型
  * @property TASK_CREATION 创建任务
  * @property GROUP_JOIN 加入团体
- * @property TASK_EXPAND_GROUP TODO: 扩展任务团体
  */
-enum class ApprovalTargetType { TASK_CREATION, GROUP_JOIN, TASK_EXPAND_GROUP }
+enum class ApprovalTargetType { TASK_CREATION, GROUP_JOIN }
 
 /**
  * 审批状态
@@ -43,7 +43,8 @@ object JoinGroupApprovals : Table("join_group_approvals") {
     val requesterUserId = text("requester_user_id")
     val requesterUserName = text("requester_user_name")
     val requesterWeixinOpenId = text("requester_weixin_open_id")
-    val entryPasswordSM3 = text("entry_password_sm3").nullable()
+    val requesterDevice = text("requester_device").nullable()
+    val preAuthTokenSM3 = text("pre_auth_token_sm3").nullable()
     override val primaryKey = PrimaryKey(approvalId)
 }
 

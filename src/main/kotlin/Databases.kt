@@ -1,15 +1,11 @@
 package org.lumina
 
 import io.ktor.server.application.*
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.StdOutSqlLogger
-import org.jetbrains.exposed.sql.addLogger
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.lumina.models.Approvals
-import org.lumina.models.Groups
-import org.lumina.models.UserGroups
-import org.lumina.models.Users
+import org.jetbrains.exposed.v1.core.StdOutSqlLogger
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.lumina.models.*
 
 fun Application.configureDatabases() {
     val database = Database.connect(
@@ -24,7 +20,12 @@ fun Application.configureDatabases() {
             Users,
             Groups,
             UserGroups,
-            Approvals
+            Approvals,
+            JoinGroupApprovals,
+            Tasks,
+            TaskMemberPolicies,
+            TaskParticipationRecord,
+            CheckInTaskInfoTable
         )
         tables.forEach { table ->
             SchemaUtils.createMissingTablesAndColumns(table)
