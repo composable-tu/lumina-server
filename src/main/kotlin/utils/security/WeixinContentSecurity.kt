@@ -1,17 +1,20 @@
-package org.lumina.utils
+package org.lumina.utils.security
 
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lumina.fields.GeneralFields.WEIXIN_MP_SERVER_OPEN_API_HOST
-import org.lumina.utils.WeixinContentSecurityScene.SCENE_COMMENT
-import org.lumina.utils.WeixinContentSecurityScene.SCENE_FORUM
-import org.lumina.utils.WeixinContentSecurityScene.SCENE_PROFILE
-import org.lumina.utils.WeixinContentSecurityScene.SCENE_SOCIAL_LOG
+import org.lumina.utils.commonClient
+import org.lumina.utils.getWeixinAccessTokenOrNull
+import org.lumina.utils.security.WeixinContentSecurityScene.SCENE_COMMENT
+import org.lumina.utils.security.WeixinContentSecurityScene.SCENE_FORUM
+import org.lumina.utils.security.WeixinContentSecurityScene.SCENE_PROFILE
+import org.lumina.utils.security.WeixinContentSecurityScene.SCENE_SOCIAL_LOG
+import java.security.InvalidParameterException
 
 /**
  * 场景枚举值
@@ -40,18 +43,19 @@ object WeixinContentSecurityScene {
  * @property signature 个性签名，该参数仅在资料类场景有效(scene=1)，需使用UTF-8编码
  * @see [微信开放文档](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/sec-center/sec-check/msgSecCheck.html)
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class WeixinContentSecurityRequest(
     val content: String,
-    val version: Int = 2,
-    val scene: Int = SCENE_FORUM,
+    @EncodeDefault val version: Int = 2,
+    @EncodeDefault val scene: Int = SCENE_FORUM,
     val openid: String,
     val title: String? = null,
     val nickname: String? = null,
     val signature: String? = null
 ) {
     init {
-        if (scene != SCENE_PROFILE && signature != null) throw IllegalArgumentException("个性签名只允许在资料场景使用")
+        if (scene != SCENE_PROFILE && signature != null) throw InvalidParameterException("个性签名只允许在资料场景使用")
     }
 }
 
@@ -105,7 +109,6 @@ data class WeixinContentSecurityResponseResult(
     val suggest: String? = null, val label: Int? = null
 )
 
-private val client = HttpClient(CIO)
 private val json = Json { ignoreUnknownKeys = true }
 
 /**
@@ -120,14 +123,16 @@ private val json = Json { ignoreUnknownKeys = true }
 suspend fun weixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest
 ): WeixinContentSecurityResponse {
-    val accessToken = getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
-    val response = client.post {
+    val accessToken =
+        getWeixinAccessTokenOrNull(appId, appSecret) ?: throw IllegalStateException("获取微信接口调用凭证失败")
+    val response = commonClient.post {
         url {
             protocol = URLProtocol.HTTPS
             host = WEIXIN_MP_SERVER_OPEN_API_HOST
             path("wxa", "msg_sec_check")
             parameters.append("access_token", accessToken)
         }
+        contentType(ContentType.Application.Json)
         setBody(request)
     }
     return json.decodeFromString<WeixinContentSecurityResponse>(response.bodyAsText())
@@ -141,7 +146,6 @@ suspend fun temporaryWeixinContentSecurityCheck(
     appId: String, appSecret: String, request: WeixinContentSecurityRequest
 ): Boolean {
     val result = weixinContentSecurityCheck(appId, appSecret, request)
-    val suggest = result.result?.suggest
-    if (suggest == null) throw IllegalStateException("获取微信内容安全检测结果失败")
+    val suggest = result.result?.suggest ?: throw IllegalStateException("获取微信内容安全检测结果失败")
     return suggest == "pass" || suggest == "review"
 }
