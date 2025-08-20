@@ -15,6 +15,7 @@ fun Application.configureRouting(appId: String, appSecret: String) {
         weixinSoterRoute(appId, appSecret)
         userRoute(appId, appSecret)
         taskRoute(appId, appSecret)
+        taskManagerRoute(appId, appSecret)
         if (environment.isDev()) devRoute(appId, appSecret)
     }
 }
