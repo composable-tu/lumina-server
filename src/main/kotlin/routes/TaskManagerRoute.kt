@@ -184,7 +184,6 @@ fun Route.taskManagerRoute(appId: String, appSecret: String) {
                         true,
                         request.soterInfo
                     ) {
-
                         val taskId = try {
                             taskIdString.toLong()
                         } catch (_: NumberFormatException) {
@@ -245,6 +244,7 @@ fun Route.taskManagerRoute(appId: String, appSecret: String) {
                                 it[this.intervener] = userId
                             }
                         }
+                        call.respond(HttpStatusCode.OK)
                     }
                 }
             }
