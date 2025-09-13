@@ -35,6 +35,8 @@ enum class InterventionType { MARK_AS_PARTICIPANT, MARK_AS_NOT_PARTICIPANT, MARK
 
 /**
  * 签到任务创建者干预记录
+ *
+ * 新增或修改这里的记录不需要同时修改同用户的签到任务参与记录，因为最终用户任务状态由业务代码比较两处记录后共同决定
  */
 object CheckInTaskCreatorInterventionRecord: Table("check_in_task_creator_intervention_record") {
     val taskId = reference("task_id", Tasks.taskId, onDelete = ReferenceOption.CASCADE)

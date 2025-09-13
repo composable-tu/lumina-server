@@ -1,16 +1,16 @@
 val exposed_version = "1.0.0-beta-5"
 val h2_version = "2.3.232"
-val kotlin_version="2.2.10"
-val logback_version="1.5.18"
-val postgres_version="42.7.7"
-val kona_sm_version="1.0.18"
-val tika_version="3.2.2"
+val kotlin_version = "2.2.20"
+val logback_version = "1.5.18"
+val postgres_version = "42.7.7"
+val kona_sm_version = "1.0.18"
+val tika_version = "3.2.2"
+val apache_poi_version = "5.4.1"
 
 plugins {
-    kotlin("jvm") version "2.2.10"
-    id("io.ktor.plugin") version "3.2.3"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.10"
-    id("org.sonarqube") version "6.2.0.5505"
+    kotlin("jvm") version "2.2.20"
+    id("io.ktor.plugin") version "3.3.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
     id("com.github.ben-manes.versions") version "0.52.0"
 }
 
@@ -32,14 +32,6 @@ repositories {
 ktor {
     fatJar {
         archiveFileName = "lumina-server-all.jar"
-    }
-}
-
-sonar {
-    properties {
-        property("sonar.projectKey", "LuminaPJ_lumina-server")
-        property("sonar.organization", "lumina")
-        property("sonar.host.url", "https://sonarcloud.io")
     }
 }
 
@@ -66,12 +58,13 @@ dependencies {
     implementation("io.ktor:ktor-server-config-yaml")
     implementation("io.ktor:ktor-server-host-common")
     implementation("io.ktor:ktor-server-status-pages")
-    implementation("io.ktor:ktor-client-cio-jvm:3.2.3")
+    implementation("io.ktor:ktor-client-cio-jvm:3.3.0")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
     implementation("ch.qos.logback:logback-classic:1.5.18")
     implementation("org.apache.tika:tika-core:$tika_version")
     implementation("org.apache.tika:tika-parsers:$tika_version")
+    implementation("org.apache.poi:poi-ooxml:$apache_poi_version")
 }
 

@@ -17,6 +17,7 @@ import org.lumina.utils.security.weixinDecryptContent
  *
  * 功能：
  * - 获取当前登录用户的 weixinOpenId
+ * - 解密用户端发送的字符串
  */
 fun Routing.devRoute(appId: String, appSecret: String) {
     route("/dev") {

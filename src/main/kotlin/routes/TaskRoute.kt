@@ -576,7 +576,7 @@ fun Route.taskRoute(appId: String, appSecret: String) {
  * @param taskId
  * @param userId
  */
-private fun Transaction.getTaskStatus(taskRow: ResultRow, taskId: Long, userId: String): TaskStatus {
+fun Transaction.getTaskStatus(taskRow: ResultRow, taskId: Long, userId: String): TaskStatus {
     val isUserInTask = run {
         val taskMemberPolicy = taskRow[Tasks.memberPolicy]
         val memberList = TaskMemberPolicies.selectAll().where {
@@ -599,7 +599,7 @@ private fun Transaction.getTaskStatus(taskRow: ResultRow, taskId: Long, userId: 
             }.firstOrNull()
             if (checkInTaskCreatorInterventionRecordRow != null) checkInTaskCreatorInterventionRecordRow[CheckInTaskCreatorInterventionRecord.interventionType] else null
         } else null
-        val isExpired = taskRow[Tasks.endTime] < LocalDateTime.now()
+        val isExpired = taskRow[Tasks.endTime] .isBefore( LocalDateTime.now())
         val userTaskParticipationRecord = TaskParticipationRecord.selectAll().where {
             (TaskParticipationRecord.taskId eq taskId) and (TaskParticipationRecord.userId eq userId)
         }.firstOrNull()
@@ -607,7 +607,7 @@ private fun Transaction.getTaskStatus(taskRow: ResultRow, taskId: Long, userId: 
         when (checkInTaskInterventionStatus) {
             InterventionType.MARK_AS_NOT_PARTICIPANT -> MARK_AS_NOT_PARTICIPANT
             InterventionType.MARK_AS_PENDING -> MARK_AS_PENDING
-            InterventionType.MARK_AS_PARTICIPANT -> if (userTaskParticipationRecord == null) PENDING else PARTICIPATED
+            InterventionType.MARK_AS_PARTICIPANT -> if (userTaskParticipationRecord == null) MARK_AS_PARTICIPANT else PARTICIPATED
             else -> if (userTaskParticipationRecord == null) {
                 if (isExpired) EXPIRED else PENDING
             } else PARTICIPATED
