@@ -9,6 +9,7 @@ import io.ktor.server.routing.*
 import kotlinx.datetime.toKotlinLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -22,9 +23,7 @@ import org.lumina.models.Users
 import org.lumina.models.task.*
 import org.lumina.models.task.InterventionType.MARK_AS_PARTICIPANT
 import org.lumina.models.weixinOpenId2UserIdOrNull
-import org.lumina.utils.LuminaBadRequestException
-import org.lumina.utils.LuminaIllegalStateException
-import org.lumina.utils.normalized
+import org.lumina.utils.*
 import org.lumina.utils.security.*
 import java.time.LocalDateTime
 import kotlinx.datetime.LocalDateTime as KotlinLocalDateTime
@@ -58,106 +57,43 @@ fun Route.taskManagerRoute(appId: String, appSecret: String) {
                             throw LuminaBadRequestException(INVALID_TASK_ID)
                         }
                         val checkInTaskInfoManagerResponse = transaction {
-                            val taskRow = Tasks.selectAll().where { Tasks.taskId eq taskId }.firstOrNull()
-                                ?: throw LuminaBadRequestException(INVALID_TASK_ID)
-                            if (taskRow[Tasks.taskType] != TaskType.CHECK_IN) throw LuminaBadRequestException("该任务不是签到任务")
-                            val checkInTaskRow = CheckInTaskInfoTable.selectAll().where {
-                                CheckInTaskInfoTable.taskId eq taskId
-                            }.firstOrNull() ?: throw LuminaBadRequestException("签到任务信息不存在")
-
-                            val participationRecords = TaskParticipationRecord.selectAll().where {
-                                TaskParticipationRecord.taskId eq taskId
-                            }.toList()
-                            val interventionRecords = CheckInTaskCreatorInterventionRecord.selectAll().where {
-                                CheckInTaskCreatorInterventionRecord.taskId eq taskId
-                            }.toList()
-                            val taskMemberPolicies = TaskMemberPolicies.selectAll().where {
-                                TaskMemberPolicies.taskId eq taskId
-                            }.toList()
-                            val groupId = taskRow[Tasks.groupId]
-                            val groupName = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()?.get(
-                                Groups.groupName
-                            )
-                            val creatorId = taskRow[Tasks.creator]
-                            val creatorName = Users.selectAll().where { Users.userId eq creatorId }.firstOrNull()?.get(
-                                Users.userName
-                            )
-                            val groupMembers = UserGroups.selectAll().where {
-                                UserGroups.groupId eq groupId
-                            }.toList()
-
-                            val allUserIds = buildSet {
-                                add(creatorId)
-                                addAll(groupMembers.map { it[UserGroups.userId] })
-                                addAll(participationRecords.map { it[TaskParticipationRecord.userId] })
-                                addAll(interventionRecords.map { it[CheckInTaskCreatorInterventionRecord.userId] })
-                            }
-
-                            val userNameMap = Users.selectAll().where { Users.userId inList allUserIds }
-                                .associateBy { it[Users.userId] }
-                            val userIdToParticipationRecordMap =
-                                participationRecords.associateBy { it[TaskParticipationRecord.userId] }
-                            val userIdToInterventionRecordMap =
-                                interventionRecords.associateBy { it[CheckInTaskCreatorInterventionRecord.userId] }
-
-
-                            val memberList = groupMembers.map { groupMember ->
-                                val userId = groupMember[UserGroups.userId]
-                                val userName = userNameMap[userId]?.get(Users.userName)
-
-                                // 判断用户是否在任务参与列表中
-                                val isUserInTask = when (taskRow[Tasks.memberPolicy]) {
-                                    MemberPolicyType.WHITELIST -> taskMemberPolicies.any { policy ->
-                                        policy[TaskMemberPolicies.userId] == userId
-                                    }
-
-                                    MemberPolicyType.BLACKLIST -> taskMemberPolicies.none { policy ->
-                                        policy[TaskMemberPolicies.userId] == userId
-                                    }
-                                }
-
-                                val participationRecord = userIdToParticipationRecordMap[userId]
-
-                                val status = if (!isUserInTask) TaskStatus.NOT_REQUIRED else {
-                                    val interventionRecord = userIdToInterventionRecordMap[userId]
-                                    val isExpired = taskRow[Tasks.endTime].isBefore(LocalDateTime.now())
-                                    when (interventionRecord?.get(CheckInTaskCreatorInterventionRecord.interventionType)) {
-                                        InterventionType.MARK_AS_NOT_PARTICIPANT -> TaskStatus.MARK_AS_NOT_PARTICIPANT
-                                        InterventionType.MARK_AS_PENDING -> TaskStatus.MARK_AS_PENDING
-                                        MARK_AS_PARTICIPANT -> if (participationRecord == null) TaskStatus.MARK_AS_PARTICIPANT else TaskStatus.PARTICIPATED
-
-                                        null -> if (participationRecord == null) {
-                                            if (isExpired) TaskStatus.EXPIRED else TaskStatus.PENDING
-                                        } else TaskStatus.PARTICIPATED
-                                    }
-                                }
-
-                                val participatedAt = participationRecord?.get(TaskParticipationRecord.participatedAt)
-                                    ?.toKotlinLocalDateTime()
-
-                                CheckInTaskUserStatusInfo(
-                                    userId = userId,
-                                    userName = userName,
-                                    status = status,
-                                    participatedAt = participatedAt
-                                )
-                            }
-
-                            CheckInTaskInfoManagerResponse(
-                                taskId = taskIdString,
-                                groupId = groupId,
-                                groupName = groupName,
-                                taskName = taskRow[Tasks.taskName],
-                                checkInType = checkInTaskRow[CheckInTaskInfoTable.checkInType],
-                                description = taskRow[Tasks.description],
-                                endTime = taskRow[Tasks.endTime].toKotlinLocalDateTime(),
-                                createdAt = taskRow[Tasks.createdAt].toKotlinLocalDateTime(),
-                                creatorId = creatorId,
-                                creatorName = creatorName,
-                                memberList = memberList
-                            )
+                            getCheckInTaskInfoManagerResponse(taskId)
                         }
                         call.respond(checkInTaskInfoManagerResponse)
+                    }
+                }
+
+                // 导出为 Excel
+                get("/export") {
+                    val taskIdString = call.parameters["taskId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest, INVALID_TASK_ID
+                    )
+                    val weixinOpenId =
+                        call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                            HttpStatusCode.Unauthorized, INVALID_JWT
+                        )
+                    protectedRoute(
+                        weixinOpenId,
+                        taskIdString,
+                        setOf(RuntimePermission.SELF),
+                        CheckType.TASK_ID,
+                        "任务创建者查看任务 $taskIdString",
+                        false
+                    ) {
+                        val taskId = try {
+                            taskIdString.toLong()
+                        } catch (_: NumberFormatException) {
+                            throw LuminaBadRequestException(INVALID_TASK_ID)
+                        }
+                        val checkInTaskInfoManagerResponse = transaction {
+                            getCheckInTaskInfoManagerResponse(taskId)
+                        }
+                        val excelData = createCheckInTaskExcel(checkInTaskInfoManagerResponse)
+                        call.response.header(
+                            HttpHeaders.ContentDisposition,
+                            "attachment; filename=\"${checkInTaskInfoManagerResponse.taskName.sanitizeFilename()}-任务详情.xlsx\""
+                        )
+                        call.respondBytes(excelData, ContentType.Application.Xlsx)
                     }
                 }
 
@@ -283,125 +219,360 @@ fun Route.taskManagerRoute(appId: String, appSecret: String) {
                             throw LuminaBadRequestException(INVALID_TASK_ID)
                         }
                         val voteTaskInfoManagerResponse = transaction {
-                            val taskRow = Tasks.selectAll().where { Tasks.taskId eq taskId }.firstOrNull()
-                                ?: throw LuminaBadRequestException(INVALID_TASK_ID)
-                            if (taskRow[Tasks.taskType] != TaskType.VOTE) throw LuminaBadRequestException("该任务不是投票任务")
-
-                            val voteTaskRow = VoteTaskInfoTable.selectAll().where {
-                                VoteTaskInfoTable.taskId eq taskId
-                            }.firstOrNull() ?: throw LuminaBadRequestException("投票任务信息不存在")
-
-                            val participationRecords = TaskParticipationRecord.selectAll().where {
-                                TaskParticipationRecord.taskId eq taskId
-                            }.toList()
-
-                            val taskMemberPolicies = TaskMemberPolicies.selectAll().where {
-                                TaskMemberPolicies.taskId eq taskId
-                            }.toList()
-
-                            val groupId = taskRow[Tasks.groupId]
-                            val groupName = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()?.get(
-                                Groups.groupName
-                            )
-                            val creatorId = taskRow[Tasks.creator]
-                            val creatorName = Users.selectAll().where { Users.userId eq creatorId }.firstOrNull()?.get(
-                                Users.userName
-                            )
-                            val groupMembers = UserGroups.selectAll().where {
-                                UserGroups.groupId eq groupId
-                            }.toList()
-
-                            val userIds = groupMembers.map { it[UserGroups.userId] }
-                            val userNameMap =
-                                Users.selectAll().where { Users.userId inList userIds }.associateBy { it[Users.userId] }
-                            val userIdToParticipationRecordMap =
-                                participationRecords.associateBy { it[TaskParticipationRecord.userId] }
-
-                            val voteOptions = VoteTaskOptionTable.selectAll().where {
-                                VoteTaskOptionTable.taskId eq taskId
-                            }.orderBy(VoteTaskOptionTable.sortOrder).toList()
-
-                            val voteParticipationRecords = VoteTaskParticipationRecord.selectAll().where {
-                                VoteTaskParticipationRecord.taskId eq taskId
-                            }.toList()
-
-                            val optionIdToVoteParticipantsMap =
-                                mutableMapOf<Long, MutableList<VoteTaskParticipantInfo>>()
-
-                            voteParticipationRecords.forEach { record ->
-                                val optionId = record[VoteTaskParticipationRecord.selectedOption]
-                                val userId = record[VoteTaskParticipationRecord.userId]
-                                val userName = userNameMap[userId]?.get(Users.userName)
-                                val participatedAt =
-                                    userIdToParticipationRecordMap[userId]?.get(TaskParticipationRecord.participatedAt)
-                                        ?.toKotlinLocalDateTime() ?: throw LuminaIllegalStateException("服务端错误")
-
-                                val participantInfo = VoteTaskParticipantInfo(
-                                    userId = userId, userName = userName, votedAt = participatedAt
-                                )
-
-                                optionIdToVoteParticipantsMap.getOrPut(optionId) { mutableListOf() }
-                                    .add(participantInfo)
-                            }
-
-                            val voteTaskOptions = voteOptions.map {
-                                val optionId = it[VoteTaskOptionTable.optionId]
-                                val participants =
-                                    optionIdToVoteParticipantsMap[optionId]?.sortedBy { info -> info.votedAt }
-
-                                VoteTaskOptionManager(
-                                    optionName = it[VoteTaskOptionTable.optionName],
-                                    sortOrder = it[VoteTaskOptionTable.sortOrder],
-                                    optionDescription = it[VoteTaskOptionTable.optionDescription],
-                                    voteParticipants = participants
-                                )
-                            }
-
-                            // 获取未参与投票的用户
-                            val voteNonParticipants = groupMembers.mapNotNull { groupMember ->
-                                val userId = groupMember[UserGroups.userId]
-                                val userName = userNameMap[userId]?.get(Users.userName)
-
-                                // 判断用户是否在任务参与列表中
-                                val isUserInTask = when (taskRow[Tasks.memberPolicy]) {
-                                    MemberPolicyType.WHITELIST -> taskMemberPolicies.any { policy ->
-                                        policy[TaskMemberPolicies.userId] == userId
-                                    }
-
-                                    MemberPolicyType.BLACKLIST -> taskMemberPolicies.none { policy ->
-                                        policy[TaskMemberPolicies.userId] == userId
-                                    }
-                                }
-
-                                // 只有在任务参与列表中且未参与投票的用户才加入未参与者列表
-                                if (isUserInTask && !userIdToParticipationRecordMap.containsKey(userId)) VoteTaskNonParticipantInfo(
-                                    userId = userId, userName = userName
-                                ) else null
-                            }
-
-                            VoteTaskInfoManagerResponse(
-                                taskId = taskIdString,
-                                groupId = groupId,
-                                groupName = groupName,
-                                taskName = taskRow[Tasks.taskName],
-                                voteMaxSelectable = voteTaskRow[VoteTaskInfoTable.maxSelectable],
-                                voteCanRecall = voteTaskRow[VoteTaskInfoTable.canRecall],
-                                isVoteResultPublic = voteTaskRow[VoteTaskInfoTable.isResultPublic],
-                                voteTaskOptions = voteTaskOptions,
-                                voteNonParticipants = voteNonParticipants.ifEmpty { null },
-                                description = taskRow[Tasks.description],
-                                endTime = taskRow[Tasks.endTime].toKotlinLocalDateTime(),
-                                createdAt = taskRow[Tasks.createdAt].toKotlinLocalDateTime(),
-                                creatorId = creatorId,
-                                creatorName = creatorName
-                            )
+                            getVoteTaskInfoManagerResponse(taskId)
                         }
                         call.respond(voteTaskInfoManagerResponse)
+                    }
+                }
+
+                // 导出为 Excel
+                get("/export") {
+                    val taskIdString = call.parameters["taskId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest, INVALID_TASK_ID
+                    )
+                    val weixinOpenId =
+                        call.principal<JWTPrincipal>()?.get("weixinOpenId")?.trim() ?: return@get call.respond(
+                            HttpStatusCode.Unauthorized, INVALID_JWT
+                        )
+                    protectedRoute(
+                        weixinOpenId,
+                        taskIdString,
+                        setOf(RuntimePermission.SELF),
+                        CheckType.TASK_ID,
+                        "任务创建者查看投票任务 $taskIdString 参与信息",
+                        false
+                    ) {
+                        val taskId = try {
+                            taskIdString.toLong()
+                        } catch (_: NumberFormatException) {
+                            throw LuminaBadRequestException(INVALID_TASK_ID)
+                        }
+                        val voteTaskInfoManagerResponse = transaction {
+                            getVoteTaskInfoManagerResponse(taskId)
+                        }
+                        val excelData = createVoteTaskExcel(voteTaskInfoManagerResponse)
+                        call.response.header(
+                            HttpHeaders.ContentDisposition,
+                            "attachment; filename=\"${voteTaskInfoManagerResponse.taskName.sanitizeFilename()}-投票详情.xlsx\""
+                        )
+                        call.respondBytes(excelData, ContentType.Application.Xlsx)
                     }
                 }
             }
         }
     }
+}
+
+private fun Transaction.getCheckInTaskInfoManagerResponse(taskId: Long): CheckInTaskInfoManagerResponse {
+    val taskRow = Tasks.selectAll().where { Tasks.taskId eq taskId }.firstOrNull() ?: throw LuminaBadRequestException(
+        INVALID_TASK_ID
+    )
+    if (taskRow[Tasks.taskType] != TaskType.CHECK_IN) throw LuminaBadRequestException("该任务不是签到任务")
+    val checkInTaskRow = CheckInTaskInfoTable.selectAll().where {
+        CheckInTaskInfoTable.taskId eq taskId
+    }.firstOrNull() ?: throw LuminaBadRequestException("签到任务信息不存在")
+
+    val participationRecords = TaskParticipationRecord.selectAll().where {
+        TaskParticipationRecord.taskId eq taskId
+    }.toList()
+    val interventionRecords = CheckInTaskCreatorInterventionRecord.selectAll().where {
+        CheckInTaskCreatorInterventionRecord.taskId eq taskId
+    }.toList()
+    val taskMemberPolicies = TaskMemberPolicies.selectAll().where {
+        TaskMemberPolicies.taskId eq taskId
+    }.toList()
+    val groupId = taskRow[Tasks.groupId]
+    val groupName = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()?.get(
+        Groups.groupName
+    )
+    val creatorId = taskRow[Tasks.creator]
+    val creatorName = Users.selectAll().where { Users.userId eq creatorId }.firstOrNull()?.get(
+        Users.userName
+    )
+    val groupMembers = UserGroups.selectAll().where {
+        UserGroups.groupId eq groupId
+    }.toList()
+
+    val allUserIds = buildSet {
+        add(creatorId)
+        addAll(groupMembers.map { it[UserGroups.userId] })
+        addAll(participationRecords.map { it[TaskParticipationRecord.userId] })
+        addAll(interventionRecords.map { it[CheckInTaskCreatorInterventionRecord.userId] })
+    }
+
+    val userNameMap = Users.selectAll().where { Users.userId inList allUserIds }.associateBy { it[Users.userId] }
+    val userIdToParticipationRecordMap = participationRecords.associateBy { it[TaskParticipationRecord.userId] }
+    val userIdToInterventionRecordMap =
+        interventionRecords.associateBy { it[CheckInTaskCreatorInterventionRecord.userId] }
+
+
+    val memberList = groupMembers.map { groupMember ->
+        val userId = groupMember[UserGroups.userId]
+        val userName = userNameMap[userId]?.get(Users.userName)
+
+        // 判断用户是否在任务参与列表中
+        val isUserInTask = when (taskRow[Tasks.memberPolicy]) {
+            MemberPolicyType.WHITELIST -> taskMemberPolicies.any { policy ->
+                policy[TaskMemberPolicies.userId] == userId
+            }
+
+            MemberPolicyType.BLACKLIST -> taskMemberPolicies.none { policy ->
+                policy[TaskMemberPolicies.userId] == userId
+            }
+        }
+
+        val participationRecord = userIdToParticipationRecordMap[userId]
+
+        val status = if (!isUserInTask) TaskStatus.NOT_REQUIRED else {
+            val interventionRecord = userIdToInterventionRecordMap[userId]
+            val isExpired = taskRow[Tasks.endTime].isBefore(LocalDateTime.now())
+            when (interventionRecord?.get(CheckInTaskCreatorInterventionRecord.interventionType)) {
+                InterventionType.MARK_AS_NOT_PARTICIPANT -> TaskStatus.MARK_AS_NOT_PARTICIPANT
+                InterventionType.MARK_AS_PENDING -> TaskStatus.MARK_AS_PENDING
+                MARK_AS_PARTICIPANT -> if (participationRecord == null) TaskStatus.MARK_AS_PARTICIPANT else TaskStatus.PARTICIPATED
+
+                null -> if (participationRecord == null) {
+                    if (isExpired) TaskStatus.EXPIRED else TaskStatus.PENDING
+                } else TaskStatus.PARTICIPATED
+            }
+        }
+
+        val participatedAt = participationRecord?.get(TaskParticipationRecord.participatedAt)?.toKotlinLocalDateTime()
+
+        CheckInTaskUserStatusInfo(
+            userId = userId, userName = userName, status = status, participatedAt = participatedAt
+        )
+    }
+
+    return CheckInTaskInfoManagerResponse(
+        taskId = taskId.toString(),
+        groupId = groupId,
+        groupName = groupName,
+        taskName = taskRow[Tasks.taskName],
+        checkInType = checkInTaskRow[CheckInTaskInfoTable.checkInType],
+        description = taskRow[Tasks.description],
+        endTime = taskRow[Tasks.endTime].toKotlinLocalDateTime(),
+        createdAt = taskRow[Tasks.createdAt].toKotlinLocalDateTime(),
+        creatorId = creatorId,
+        creatorName = creatorName,
+        memberList = memberList
+    )
+}
+
+private fun Transaction.getVoteTaskInfoManagerResponse(taskId: Long): VoteTaskInfoManagerResponse {
+    val taskRow = Tasks.selectAll().where { Tasks.taskId eq taskId }.firstOrNull() ?: throw LuminaBadRequestException(
+        INVALID_TASK_ID
+    )
+    if (taskRow[Tasks.taskType] != TaskType.VOTE) throw LuminaBadRequestException("该任务不是投票任务")
+
+    val voteTaskRow = VoteTaskInfoTable.selectAll().where {
+        VoteTaskInfoTable.taskId eq taskId
+    }.firstOrNull() ?: throw LuminaBadRequestException("投票任务信息不存在")
+
+    val participationRecords = TaskParticipationRecord.selectAll().where {
+        TaskParticipationRecord.taskId eq taskId
+    }.toList()
+
+    val taskMemberPolicies = TaskMemberPolicies.selectAll().where {
+        TaskMemberPolicies.taskId eq taskId
+    }.toList()
+
+    val groupId = taskRow[Tasks.groupId]
+    val groupName = Groups.selectAll().where { Groups.groupId eq groupId }.firstOrNull()?.get(
+        Groups.groupName
+    )
+    val creatorId = taskRow[Tasks.creator]
+    val creatorName = Users.selectAll().where { Users.userId eq creatorId }.firstOrNull()?.get(
+        Users.userName
+    )
+    val groupMembers = UserGroups.selectAll().where {
+        UserGroups.groupId eq groupId
+    }.toList()
+
+    val userIds = groupMembers.map { it[UserGroups.userId] }
+    val userNameMap = Users.selectAll().where { Users.userId inList userIds }.associateBy { it[Users.userId] }
+    val userIdToParticipationRecordMap = participationRecords.associateBy { it[TaskParticipationRecord.userId] }
+
+    val voteOptions = VoteTaskOptionTable.selectAll().where {
+        VoteTaskOptionTable.taskId eq taskId
+    }.orderBy(VoteTaskOptionTable.sortOrder).toList()
+
+    val voteParticipationRecords = VoteTaskParticipationRecord.selectAll().where {
+        VoteTaskParticipationRecord.taskId eq taskId
+    }.toList()
+
+    val optionIdToVoteParticipantsMap = mutableMapOf<Long, MutableList<VoteTaskParticipantInfo>>()
+
+    voteParticipationRecords.forEach { record ->
+        val optionId = record[VoteTaskParticipationRecord.selectedOption]
+        val userId = record[VoteTaskParticipationRecord.userId]
+        val userName = userNameMap[userId]?.get(Users.userName)
+        val participatedAt =
+            userIdToParticipationRecordMap[userId]?.get(TaskParticipationRecord.participatedAt)?.toKotlinLocalDateTime()
+                ?: throw LuminaIllegalStateException("服务端错误")
+
+        val participantInfo = VoteTaskParticipantInfo(
+            userId = userId, userName = userName, votedAt = participatedAt
+        )
+
+        optionIdToVoteParticipantsMap.getOrPut(optionId) { mutableListOf() }.add(participantInfo)
+    }
+
+    val voteTaskOptions = voteOptions.map {
+        val optionId = it[VoteTaskOptionTable.optionId]
+        val participants = optionIdToVoteParticipantsMap[optionId]?.sortedBy { info -> info.votedAt }
+
+        VoteTaskOptionManager(
+            optionName = it[VoteTaskOptionTable.optionName],
+            sortOrder = it[VoteTaskOptionTable.sortOrder],
+            optionDescription = it[VoteTaskOptionTable.optionDescription],
+            voteParticipants = participants
+        )
+    }
+
+    // 获取未参与投票的用户
+    val voteNonParticipants = groupMembers.mapNotNull { groupMember ->
+        val userId = groupMember[UserGroups.userId]
+        val userName = userNameMap[userId]?.get(Users.userName)
+
+        // 判断用户是否在任务参与列表中
+        val isUserInTask = when (taskRow[Tasks.memberPolicy]) {
+            MemberPolicyType.WHITELIST -> taskMemberPolicies.any { policy ->
+                policy[TaskMemberPolicies.userId] == userId
+            }
+
+            MemberPolicyType.BLACKLIST -> taskMemberPolicies.none { policy ->
+                policy[TaskMemberPolicies.userId] == userId
+            }
+        }
+
+        // 只有在任务参与列表中且未参与投票的用户才加入未参与者列表
+        if (isUserInTask && !userIdToParticipationRecordMap.containsKey(userId)) VoteTaskNonParticipantInfo(
+            userId = userId, userName = userName
+        ) else null
+    }
+
+    return VoteTaskInfoManagerResponse(
+        taskId = taskId.toString(),
+        groupId = groupId,
+        groupName = groupName,
+        taskName = taskRow[Tasks.taskName],
+        voteMaxSelectable = voteTaskRow[VoteTaskInfoTable.maxSelectable],
+        voteCanRecall = voteTaskRow[VoteTaskInfoTable.canRecall],
+        isVoteResultPublic = voteTaskRow[VoteTaskInfoTable.isResultPublic],
+        voteTaskOptions = voteTaskOptions,
+        voteNonParticipants = voteNonParticipants.ifEmpty { null },
+        description = taskRow[Tasks.description],
+        endTime = taskRow[Tasks.endTime].toKotlinLocalDateTime(),
+        createdAt = taskRow[Tasks.createdAt].toKotlinLocalDateTime(),
+        creatorId = creatorId,
+        creatorName = creatorName
+    )
+}
+
+private fun createCheckInTaskExcel(taskInfo: CheckInTaskInfoManagerResponse): ByteArray {
+    val taskDetailsSheet = mutableListOf<List<Any?>>()
+    taskDetailsSheet.add(listOf("任务名称", taskInfo.taskName))
+    taskDetailsSheet.add(listOf("任务类型", "签到任务"))
+    taskDetailsSheet.add(listOf("签到类型", taskInfo.checkInType.name))
+    taskDetailsSheet.add(listOf("所属团体号", taskInfo.groupId))
+    taskDetailsSheet.add(listOf("所属团体名", taskInfo.groupName ?: ""))
+    taskDetailsSheet.add(listOf("创建者用户号", taskInfo.creatorId))
+    taskDetailsSheet.add(listOf("创建者用户名", taskInfo.creatorName ?: ""))
+    taskDetailsSheet.add(listOf("任务描述", taskInfo.description ?: ""))
+    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime.toString()))
+    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt.toString()))
+
+    val participantsHeaders = listOf(
+        "用户号", "用户名", "状态", "参与时间"
+    )
+
+    val participantsData = sequence {
+        taskInfo.memberList.chunked(500).forEach { chunk ->
+            yieldAll(chunk.map { member ->
+                listOf(
+                    member.userId, member.userName ?: "", member.status.name, member.participatedAt?.toString() ?: ""
+                )
+            })
+        }
+    }.toList()
+
+    val participantsSheet = POIUtil.createSheetDataWithHeaders(participantsHeaders, participantsData)
+
+    return POIUtil.createExcel(
+        mapOf(
+            "任务详情" to taskDetailsSheet, "参与者列表" to participantsSheet
+        )
+    )
+}
+
+private fun createVoteTaskExcel(taskInfo: VoteTaskInfoManagerResponse): ByteArray {
+    val taskDetailsSheet = mutableListOf<List<Any?>>()
+    taskDetailsSheet.add(listOf("任务名称", taskInfo.taskName))
+    taskDetailsSheet.add(listOf("任务类型", "投票任务"))
+    taskDetailsSheet.add(listOf("最大可选项数", taskInfo.voteMaxSelectable))
+    taskDetailsSheet.add(listOf("是否可撤回", if (taskInfo.voteCanRecall) "是" else "否"))
+    taskDetailsSheet.add(listOf("结果是否公开", if (taskInfo.isVoteResultPublic) "是" else "否"))
+    taskDetailsSheet.add(listOf("所属团体号", taskInfo.groupId))
+    taskDetailsSheet.add(listOf("所属团体名", taskInfo.groupName ?: ""))
+    taskDetailsSheet.add(listOf("创建者用户号", taskInfo.creatorId))
+    taskDetailsSheet.add(listOf("创建者用户名", taskInfo.creatorName ?: ""))
+    taskDetailsSheet.add(listOf("任务描述", taskInfo.description ?: ""))
+    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime.toString()))
+    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt.toString()))
+
+    val optionHeaders = listOf(
+        "选项名称", "排序", "选项描述", "投票人数"
+    )
+
+    val optionData = taskInfo.voteTaskOptions.map { option ->
+        listOf(
+            option.optionName, option.sortOrder, option.optionDescription ?: "", option.voteParticipants?.size ?: 0
+        )
+    }
+
+    val optionsSheet = POIUtil.createSheetDataWithHeaders(optionHeaders, optionData)
+
+    val participantHeaders = listOf(
+        "选项名称", "用户号", "用户名", "投票时间"
+    )
+
+    val participantData = mutableListOf<List<Any?>>()
+    taskInfo.voteTaskOptions.forEach { option ->
+        option.voteParticipants?.forEach { participant ->
+            participantData.add(
+                listOf(
+                    option.optionName, participant.userId, participant.userName ?: "", participant.votedAt.toString()
+                )
+            )
+        }
+    }
+
+    val participantsSheet = if (participantData.isNotEmpty()) {
+        POIUtil.createSheetDataWithHeaders(participantHeaders, participantData)
+    } else listOf(participantHeaders)
+
+    val nonParticipantHeaders = listOf(
+        "未参与用户号", "未参与用户名"
+    )
+
+    val nonParticipantData = taskInfo.voteNonParticipants?.map { nonParticipant ->
+        listOf(
+            nonParticipant.userId, nonParticipant.userName ?: ""
+        )
+    } ?: emptyList()
+
+    val nonParticipantsSheet = if (nonParticipantData.isNotEmpty()) {
+        POIUtil.createSheetDataWithHeaders(nonParticipantHeaders, nonParticipantData)
+    } else listOf(nonParticipantHeaders)
+
+    val sheets = mutableMapOf(
+        "任务详情" to taskDetailsSheet, "投票选项" to optionsSheet, "投票详情" to participantsSheet
+    )
+
+    if (taskInfo.voteNonParticipants?.isNotEmpty() == true) sheets["未参与者"] = nonParticipantsSheet
+
+    return POIUtil.createExcel(sheets)
 }
 
 @Serializable

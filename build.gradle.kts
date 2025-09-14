@@ -66,5 +66,6 @@ dependencies {
     implementation("org.apache.tika:tika-core:$tika_version")
     implementation("org.apache.tika:tika-parsers:$tika_version")
     implementation("org.apache.poi:poi-ooxml:$apache_poi_version")
+    implementation("commons-io:commons-io:2.20.0")
 }
 

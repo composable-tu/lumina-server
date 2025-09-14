@@ -90,3 +90,9 @@ fun String.base64KeyToHex(): String {
     }.toString().lowercase()
 }
 
+// 移除或替换文件名中的非法字符
+fun String.sanitizeFilename(): String {
+    return this.replace(Regex("[<>:\"/\\\\|?*]"), "_").replace(Regex("\\s+"), " ") // 将多个空格替换为单个空格
+        .trim().takeIf { it.isNotEmpty() } ?: "task"
+}
+
