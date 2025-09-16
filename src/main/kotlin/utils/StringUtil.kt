@@ -1,14 +1,13 @@
 package org.lumina.utils
 
 import java.security.MessageDigest
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.isAccessible
 
 /**
  * 将用户提交的对象中所有字符串 `trim()` 化
  */
 fun <T : Any> T.normalized(): T {
     return when (this) {
+        is String -> this.trim() as T
         is Map<*, *> -> this.mapValues { (_, value) ->
             when (value) {
                 is String -> value.trim()
@@ -27,27 +26,7 @@ fun <T : Any> T.normalized(): T {
             }
         } as T
 
-        else -> {
-            val kClass = this::class
-            val constructor = kClass.constructors.firstOrNull()
-                ?: throw LuminaIllegalArgumentException("服务端错误")
-
-            val normalizedParams = mutableMapOf<String, Any?>()
-            kClass.memberProperties.forEach { property ->
-                property.isAccessible = true
-                val value = property.getter.call(this)
-                normalizedParams[property.name] = when (value) {
-                    is String -> value.trim()
-                    is Map<*, *> -> value.normalized()
-                    is List<*> -> value.normalized()
-                    else -> value
-                }
-            }
-
-            val paramNames = constructor.parameters.map { it.name }
-            val args = paramNames.map { normalizedParams[it] }.toTypedArray()
-            constructor.call(*args)
-        }
+        else -> this
     }
 }
 
