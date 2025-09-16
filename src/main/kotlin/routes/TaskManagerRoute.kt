@@ -475,7 +475,7 @@ private fun createCheckInTaskExcel(taskInfo: CheckInTaskInfoManagerResponse): By
     taskDetailsSheet.add(listOf("任务基本信息"))
     taskDetailsSheet.add(listOf("任务名称", taskInfo.taskName))
     taskDetailsSheet.add(listOf("任务类型", "签到任务"))
-    taskDetailsSheet.add(listOf("签到类型", taskInfo.checkInType.name))
+    taskDetailsSheet.add(listOf("签到类型", taskInfo.checkInType.name.semanticsCheckInTaskType()))
     taskDetailsSheet.add(listOf("所属团体号", taskInfo.groupId))
     taskDetailsSheet.add(listOf("所属团体名", taskInfo.groupName ?: ""))
     taskDetailsSheet.add(listOf("创建者用户号", taskInfo.creatorId))

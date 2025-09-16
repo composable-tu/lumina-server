@@ -128,3 +128,13 @@ fun String.semanticsTaskStatus(): String = when (this) {
     else -> ""
 }
 
+/**
+ * 语义化签到任务类型
+ */
+fun String.semanticsCheckInTaskType(): String = when (this) {
+    "TOKEN" -> "验证码签到"
+    "ORDINARY" -> "普通签到"
+    else -> ""
+}
+
+
