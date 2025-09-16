@@ -472,6 +472,7 @@ private fun Transaction.getVoteTaskInfoManagerResponse(taskId: Long): VoteTaskIn
 
 private fun createCheckInTaskExcel(taskInfo: CheckInTaskInfoManagerResponse): ByteArray {
     val taskDetailsSheet = mutableListOf<List<Any?>>()
+    taskDetailsSheet.add(listOf("任务基本信息"))
     taskDetailsSheet.add(listOf("任务名称", taskInfo.taskName))
     taskDetailsSheet.add(listOf("任务类型", "签到任务"))
     taskDetailsSheet.add(listOf("签到类型", taskInfo.checkInType.name))
@@ -480,18 +481,22 @@ private fun createCheckInTaskExcel(taskInfo: CheckInTaskInfoManagerResponse): By
     taskDetailsSheet.add(listOf("创建者用户号", taskInfo.creatorId))
     taskDetailsSheet.add(listOf("创建者用户名", taskInfo.creatorName ?: ""))
     taskDetailsSheet.add(listOf("任务描述", taskInfo.description ?: ""))
-    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime.toString()))
-    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt.toString()))
+    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime))
+    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt))
 
-    val participantsHeaders = listOf(
-        "用户号", "用户名", "状态", "参与时间"
-    )
+    POIUtil.addGeneratedInfo(taskDetailsSheet)
+
+    val participantsHeaders = listOf("序号", "用户号", "用户名", "状态", "参与时间")
 
     val participantsData = sequence {
         taskInfo.memberList.chunked(500).forEach { chunk ->
-            yieldAll(chunk.map { member ->
+            yieldAll(chunk.mapIndexed { index, member ->
                 listOf(
-                    member.userId, member.userName ?: "", member.status.name, member.participatedAt?.toString() ?: ""
+                    index + 1,
+                    member.userId,
+                    member.userName ?: "",
+                    member.status.name.semanticsCheckInTaskStatus(),
+                    member.participatedAt ?: ""
                 )
             })
         }
@@ -508,41 +513,43 @@ private fun createCheckInTaskExcel(taskInfo: CheckInTaskInfoManagerResponse): By
 
 private fun createVoteTaskExcel(taskInfo: VoteTaskInfoManagerResponse): ByteArray {
     val taskDetailsSheet = mutableListOf<List<Any?>>()
+    taskDetailsSheet.add(listOf("任务基本信息"))
     taskDetailsSheet.add(listOf("任务名称", taskInfo.taskName))
     taskDetailsSheet.add(listOf("任务类型", "投票任务"))
     taskDetailsSheet.add(listOf("最大可选项数", taskInfo.voteMaxSelectable))
-    taskDetailsSheet.add(listOf("是否可撤回", if (taskInfo.voteCanRecall) "是" else "否"))
-    taskDetailsSheet.add(listOf("结果是否公开", if (taskInfo.isVoteResultPublic) "是" else "否"))
+    taskDetailsSheet.add(listOf("是否可撤回", taskInfo.voteCanRecall))
+    taskDetailsSheet.add(listOf("结果是否公开", taskInfo.isVoteResultPublic))
     taskDetailsSheet.add(listOf("所属团体号", taskInfo.groupId))
     taskDetailsSheet.add(listOf("所属团体名", taskInfo.groupName ?: ""))
     taskDetailsSheet.add(listOf("创建者用户号", taskInfo.creatorId))
     taskDetailsSheet.add(listOf("创建者用户名", taskInfo.creatorName ?: ""))
     taskDetailsSheet.add(listOf("任务描述", taskInfo.description ?: ""))
-    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime.toString()))
-    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt.toString()))
+    taskDetailsSheet.add(listOf("结束时间", taskInfo.endTime))
+    taskDetailsSheet.add(listOf("创建时间", taskInfo.createdAt))
 
-    val optionHeaders = listOf(
-        "选项名称", "排序", "选项描述", "投票人数"
-    )
+    POIUtil.addGeneratedInfo(taskDetailsSheet)
 
-    val optionData = taskInfo.voteTaskOptions.map { option ->
-        listOf(
-            option.optionName, option.sortOrder, option.optionDescription ?: "", option.voteParticipants?.size ?: 0
-        )
+    val optionHeaders = listOf("序号", "选项名称", "选项描述", "投票人数")
+
+    val optionData = taskInfo.voteTaskOptions.mapIndexed { index, option ->
+        listOf(index + 1, option.optionName, option.optionDescription ?: "", option.voteParticipants?.size ?: 0)
     }
 
     val optionsSheet = POIUtil.createSheetDataWithHeaders(optionHeaders, optionData)
 
-    val participantHeaders = listOf(
-        "选项名称", "用户号", "用户名", "投票时间"
-    )
+    val participantHeaders = listOf("序号", "选项名称", "用户号", "用户名", "投票时间")
 
     val participantData = mutableListOf<List<Any?>>()
+    var participantIndex = 1
     taskInfo.voteTaskOptions.forEach { option ->
         option.voteParticipants?.forEach { participant ->
             participantData.add(
                 listOf(
-                    option.optionName, participant.userId, participant.userName ?: "", participant.votedAt.toString()
+                    participantIndex++,
+                    option.optionName,
+                    participant.userId,
+                    participant.userName ?: "",
+                    participant.votedAt
                 )
             )
         }
@@ -552,13 +559,11 @@ private fun createVoteTaskExcel(taskInfo: VoteTaskInfoManagerResponse): ByteArra
         POIUtil.createSheetDataWithHeaders(participantHeaders, participantData)
     } else listOf(participantHeaders)
 
-    val nonParticipantHeaders = listOf(
-        "未参与用户号", "未参与用户名"
-    )
+    val nonParticipantHeaders = listOf("序号", "未参与用户号", "未参与用户名")
 
-    val nonParticipantData = taskInfo.voteNonParticipants?.map { nonParticipant ->
+    val nonParticipantData = taskInfo.voteNonParticipants?.mapIndexed { index, nonParticipant ->
         listOf(
-            nonParticipant.userId, nonParticipant.userName ?: ""
+            index + 1, nonParticipant.userId, nonParticipant.userName ?: ""
         )
     } ?: emptyList()
 
@@ -566,9 +571,8 @@ private fun createVoteTaskExcel(taskInfo: VoteTaskInfoManagerResponse): ByteArra
         POIUtil.createSheetDataWithHeaders(nonParticipantHeaders, nonParticipantData)
     } else listOf(nonParticipantHeaders)
 
-    val sheets = mutableMapOf(
-        "任务详情" to taskDetailsSheet, "投票选项" to optionsSheet, "投票详情" to participantsSheet
-    )
+    val sheets =
+        mutableMapOf("任务详情" to taskDetailsSheet, "投票选项" to optionsSheet, "投票详情" to participantsSheet)
 
     if (taskInfo.voteNonParticipants?.isNotEmpty() == true) sheets["未参与者"] = nonParticipantsSheet
 
