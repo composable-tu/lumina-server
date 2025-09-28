@@ -9,11 +9,11 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-val exposed_version = "1.0.0-beta-5"
-val h2_version = "2.3.232"
+val exposed_version = "1.0.0-rc-1"
+val h2_version = "2.4.240"
 val kotlin_version = "2.2.20"
 val logback_version = "1.5.18"
-val postgres_version = "42.7.7"
+val postgres_version = "42.7.8"
 val kona_sm_version = "1.0.18"
 val tika_version = "3.2.3"
 val apache_poi_version = "5.4.1"
@@ -22,7 +22,7 @@ plugins {
     kotlin("jvm") version "2.2.20"
     id("io.ktor.plugin") version "3.3.0"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
-    id("com.github.ben-manes.versions") version "0.52.0"
+    id("com.github.ben-manes.versions") version "0.53.0"
 }
 
 group = "org.lumina"
@@ -61,7 +61,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-java-time:$exposed_version")
-    implementation("org.jetbrains.exposed:exposed-migration:$exposed_version")
+    implementation("org.jetbrains.exposed:exposed-migration:1.0.0-beta-5")
     implementation("com.h2database:h2:$h2_version")
     implementation("org.postgresql:postgresql:$postgres_version")
     implementation("io.ktor:ktor-server-netty")
