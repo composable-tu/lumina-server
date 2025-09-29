@@ -27,7 +27,9 @@ fun Application.configureRouting(appId: String, appSecret: String) {
         userRoute(appId, appSecret)
         taskRoute(appId, appSecret)
         taskManagerRoute(appId, appSecret)
-        if (environment.isDev()) devRoute(appId, appSecret)
+        if (environment.isDev()) {
+            devRoute(appId, appSecret)
+        }
     }
 }
 
