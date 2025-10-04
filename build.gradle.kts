@@ -14,7 +14,7 @@ val ktor_version = "3.3.0"
 val exposed_version = "1.0.0-rc-1"
 val h2_version = "2.4.240"
 val kotlin_version = "2.2.20"
-val logback_version = "1.5.18"
+val logback_version = "1.5.19"
 val postgres_version = "42.7.8"
 val kona_sm_version = "1.0.18"
 val tika_version = "3.2.3"
@@ -96,7 +96,7 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
-    implementation("ch.qos.logback:logback-classic:1.5.18")
+    implementation("ch.qos.logback:logback-classic:1.5.19")
     implementation("org.apache.tika:tika-core:$tika_version")
     implementation("org.apache.tika:tika-parsers:$tika_version")
     implementation("org.apache.poi:poi-ooxml:$apache_poi_version")
