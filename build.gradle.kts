@@ -9,7 +9,6 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-import io.ktor.plugin.*
 
 val ktor_version = "3.3.0"
 val exposed_version = "1.0.0-rc-1"
