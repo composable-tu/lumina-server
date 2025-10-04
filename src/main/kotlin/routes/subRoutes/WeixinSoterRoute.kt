@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-package org.lumina.routes.subroutes
+package org.lumina.routes.subRoutes
 
 import io.ktor.http.*
 import io.ktor.server.auth.*

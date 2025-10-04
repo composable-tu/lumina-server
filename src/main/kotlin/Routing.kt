@@ -14,7 +14,7 @@ package org.lumina
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.lumina.routes.*
-import org.lumina.routes.subroutes.weixinSoterRoute
+import org.lumina.routes.subRoutes.weixinSoterRoute
 
 fun Application.configureRouting(appId: String, appSecret: String) {
     val environment = environment.config.property("ktor.environment").getString()
