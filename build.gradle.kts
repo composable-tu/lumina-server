@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-val ktor_version = "3.3.0"
+val ktor_version = "3.3.1"
 val exposed_version = "1.0.0-rc-1"
 val h2_version = "2.4.240"
 val kotlin_version = "2.2.20"
@@ -22,7 +22,7 @@ val apache_poi_version = "5.4.1"
 
 plugins {
     kotlin("jvm") version "2.2.20"
-    id("io.ktor.plugin") version "3.3.0"
+    id("io.ktor.plugin") version "3.3.1"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
     id("com.github.ben-manes.versions") version "0.53.0"
 }
