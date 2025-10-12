@@ -11,7 +11,7 @@
  */
 
 val ktor_version = "3.3.1"
-val exposed_version = "1.0.0-rc-1"
+val exposed_version = "1.0.0-rc-2"
 val h2_version = "2.4.240"
 val kotlin_version = "2.2.20"
 val logback_version = "1.5.19"
