@@ -10,20 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-val ktor_version = "3.3.1"
+val ktor_version = "3.3.2"
 val exposed_version = "1.0.0-rc-2"
 val h2_version = "2.4.240"
-val kotlin_version = "2.2.20"
-val logback_version = "1.5.19"
+val kotlin_version = "2.2.21"
+val logback_version = "1.5.20"
 val postgres_version = "42.7.8"
-val kona_sm_version = "1.0.18"
+val kona_sm_version = "1.0.19"
 val tika_version = "3.2.3"
 val apache_poi_version = "5.4.1"
 
 plugins {
-    kotlin("jvm") version "2.2.20"
-    id("io.ktor.plugin") version "3.3.1"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
+    kotlin("jvm") version "2.2.21"
+    id("io.ktor.plugin") version "3.3.2"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.21"
     id("com.github.ben-manes.versions") version "0.53.0"
 }
 
@@ -96,7 +96,7 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
-    implementation("ch.qos.logback:logback-classic:1.5.19")
+    implementation("ch.qos.logback:logback-classic:1.5.20")
     implementation("org.apache.tika:tika-core:$tika_version")
     implementation("org.apache.tika:tika-parsers:$tika_version")
     implementation("org.apache.poi:poi-ooxml:$apache_poi_version")
